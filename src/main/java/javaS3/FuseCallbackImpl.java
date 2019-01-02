@@ -25,7 +25,7 @@ public class FuseCallbackImpl extends FuseStubFS
 {
 	final AmazonS3 s3;
 	
-	Logger log = Logger.getLogger( Driver.class );
+	Logger log = Logger.getLogger( FuseCallbackImpl.class );
 	
 	private String bucket;
 
