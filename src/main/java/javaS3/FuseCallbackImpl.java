@@ -16,13 +16,12 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import jnr.ffi.Pointer;
-import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.FuseFillDir;
 import ru.serce.jnrfuse.FuseStubFS;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
 
-public class Driver extends FuseStubFS
+public class FuseCallbackImpl extends FuseStubFS
 {
 	final AmazonS3 s3;
 	
@@ -30,7 +29,7 @@ public class Driver extends FuseStubFS
 	
 	private String bucket;
 
-	public Driver( )
+	public FuseCallbackImpl( )
 	{
 		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
 	}
@@ -43,82 +42,33 @@ public class Driver extends FuseStubFS
 	@Override
 	public int getattr(String path, FileStat stat)
 	{
-		String key = getKey( path );
-		log.info( "getattr called: " + key );
+		log.info( "getattr called: " + path );
+		S3File file = S3File.getFile( bucket, path );
 		
-		if( key.isEmpty() || !key.contains(".") )
+		if( file.isDir() )
 		{
 			stat.st_mode.set(FileStat.S_IFDIR | 0555);
             stat.st_nlink.set(2);
-			return 0;
-		}
-		
-		log.info( "testing for key existence: " + key );
-		ObjectMetadata meta = s3.getObjectMetadata( bucket, key );
-		
-		if( meta != null )
-		{
-			log.info( "found: " + meta.getContentLength() );
+		} else {
 			stat.st_mode.set(FileStat.S_IFREG | 0444);
 	        stat.st_nlink.set(1);
-	        stat.st_size.set( meta.getContentLength() );
-	        return 0;
+	        stat.st_size.set( file.getLength() );
 		}
-		
-        return -ErrorCodes.ENOENT();
+	    
+        return 0;
 	}
 
 	@Override
 	public int read(String path, Pointer buf, long size, long offset, FuseFileInfo fi) 
 	{
-		BufferedReader in;
-		int bytesRead = 0;
+		log.info( "read called: " + path + " - " + size + " - " + offset );
+
+		S3File file = S3File.getFile( bucket, path );
 		
-		String key = getKey(path);
+		byte[] buffer = file.read( offset, size );
+		buf.put(0, buffer, 0, (int)size);
 		
-		log.info( "read called: " + key + " - " + size + " - " + offset );
-		
-		try {
-			GetObjectRequest request;
-			
-			if( offset == 0 )
-			{
-				ObjectMetadata meta = s3.getObjectMetadata(bucket, key);
-				if( meta != null )
-				{
-					long newsize = meta.getContentLength();
-					log.info( "updating size from: " + size + " to: " + newsize );
-					size = newsize;
-					request = new GetObjectRequest(bucket, key);
-				} else {
-					return 0;
-				}
-			} else {
-				request = new GetObjectRequest(bucket, key).withRange( offset, (offset+size-1) );
-			}
-			
-			S3Object o = s3.getObject( request );
-			in = new BufferedReader( new InputStreamReader( o.getObjectContent() ) );
-			
-			byte[] main_buf = new byte[(int)size];
-			
-			int c = -1;
-		    while( (c = in.read()) >= 0 )
-		    {
-		    	if( bytesRead >= size )
-		    		break;
-		    	
-		    	main_buf[bytesRead++] = (byte)c;
-		    }
-					
-		    log.info( "bytesRead: " + bytesRead );
-		    buf.put(0, main_buf, 0, (int)size);
-		    in.close();
-		} catch (Exception e) {
-		    log.error(e);
-		}
-		
-		return bytesRead;
+		return buffer.length;
 	}
 	
 	@Override
@@ -155,7 +105,7 @@ public class Driver extends FuseStubFS
 
 	public static void main(String[] args) 
 	{
-        Driver stub = new Driver();
+        FuseCallbackImpl stub = new FuseCallbackImpl();
         try {
         	if( args.length < 2 )
         	{
