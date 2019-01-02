@@ -66,7 +66,7 @@ public class FuseCallbackImpl extends FuseStubFS
 		S3File file = S3File.getFile( bucket, path );
 		
 		byte[] buffer = file.read( offset, size );
-		buf.put(0, buffer, 0, (int)size);
+		buf.put(0, buffer, 0, (int)buffer.length);
 		
 		return buffer.length;
 	}
