@@ -27,7 +27,7 @@
 		      <configuration>
 		        <archive>
 		          <manifest>
-		            <mainClass>javaS3.Driver</mainClass>
+		            <mainClass>javaS3.FuseCallbackImpl</mainClass>
 		          </manifest>
 		        </archive>
 		        <descriptorRefs>
