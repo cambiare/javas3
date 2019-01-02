@@ -113,6 +113,7 @@ public class S3File
 		int bytesRead = 0;
 		try {
 			bytesRead = stream.read( buffer, (int)offset, (int)length );
+			log.info( "bytes read: " + bytesRead );
 		} catch (IOException e) {
 			log.error( e );
 		}
