@@ -114,6 +114,11 @@ public class S3File
 	{
 		byte[] buffer = new byte[(int)length];
 		
+		if( offset + length > this.length )
+		{
+			return new byte[0];
+		}
+		
 		try {
 			if( stream == null )
 			{
