@@ -57,7 +57,8 @@ public class S3File
 			file.isDir = true;
 		} else {
 			log.info( "testing for key existence: " + key );
-			ObjectMetadata meta = s3.getObjectMetadata( bucket, key );
+			file.s3object = s3.getObject( bucket, key );
+			ObjectMetadata meta = file.s3object.getObjectMetadata();
 			
 			if( meta != null )
 			{
