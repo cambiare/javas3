@@ -126,7 +126,9 @@ public class S3File
 			}
 			
 			int bytesRead = 0;
-			bytesRead = stream.read( buffer, (int)offset, (int)length );
+			stream.reset();
+			stream.skip( offset );
+			bytesRead = stream.read( buffer, 0, (int)length );
 			log.info( "bytes read: " + bytesRead );
 			
 			if( bytesRead < length )
