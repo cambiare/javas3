@@ -67,6 +67,7 @@ public class S3File
 	        file.exists = true;
 		} else {
 			file.exists = false;
+			file.isDir = true;
 		}
 		
 		return file;
