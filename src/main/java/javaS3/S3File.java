@@ -55,19 +55,19 @@ public class S3File
 		if( key.isEmpty() || !key.contains(".") )
 		{
 			file.isDir = true;
-		}
-		
-		log.info( "testing for key existence: " + key );
-		ObjectMetadata meta = s3.getObjectMetadata( bucket, key );
-		
-		if( meta != null )
-		{
-	        file.length = meta.getContentLength();
-	        file.isDir = false;
-	        file.exists = true;
 		} else {
-			file.exists = false;
-			file.isDir = true;
+			log.info( "testing for key existence: " + key );
+			ObjectMetadata meta = s3.getObjectMetadata( bucket, key );
+			
+			if( meta != null )
+			{
+		        file.length = meta.getContentLength();
+		        file.isDir = false;
+		        file.exists = true;
+			} else {
+				file.exists = false;
+				file.isDir = true;
+			}
 		}
 		
 		return file;
