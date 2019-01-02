@@ -127,7 +127,7 @@ public class S3File
 			if( bytesRead < length )
 				buffer = Arrays.copyOf( buffer, bytesRead );
 		} catch( Exception e ) { 
-			log.error( e.getStackTrace() );
+			log.error( "failed to read: ", e );
 		}
 		return buffer;
 	}
