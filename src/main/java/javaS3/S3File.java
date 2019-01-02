@@ -105,22 +105,21 @@ public class S3File
 	{
 		byte[] buffer = new byte[(int)length];
 		
-		if( stream == null )
-		{
-			stream = s3object.getObjectContent();
-		}
-		
-		int bytesRead = 0;
 		try {
+			if( stream == null )
+			{
+				stream = s3object.getObjectContent();
+			}
+			
+			int bytesRead = 0;
 			bytesRead = stream.read( buffer, (int)offset, (int)length );
 			log.info( "bytes read: " + bytesRead );
-		} catch (IOException e) {
+			
+			if( bytesRead < length )
+				buffer = Arrays.copyOf( buffer, bytesRead );
+		} catch( Exception e ) { 
 			log.error( e );
 		}
-		
-		if( bytesRead < length )
-			buffer = Arrays.copyOf( buffer, bytesRead );
-		
 		return buffer;
 	}
 	
