@@ -2,6 +2,8 @@ package javaS3;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 
@@ -30,7 +32,7 @@ public class S3File
 	private boolean					isDir;
 	private long					length;
 	private String 					bucket;
-	
+	private static Map<String, S3File> 	files = new HashMap<>();
 	
 	private static String getKey( String path )	{ return path.replaceFirst( "^/", "" ); }
 	
@@ -46,29 +48,34 @@ public class S3File
 	
 	public static S3File getFile( String bucket, String path )
 	{
-		S3File file = new S3File();
-		file.path = path;
-		file.bucket = bucket;
-		
-		String key = getKey( file.path );
-		
-		if( key.isEmpty() || !key.contains(".") )
+		S3File file = files.get( path );
+		if( file == null )
 		{
-			file.isDir = true;
-		} else {
-			log.info( "testing for key existence: " + key );
-			file.s3object = s3.getObject( bucket, key );
-			ObjectMetadata meta = file.s3object.getObjectMetadata();
+			file = new S3File();
+			file.path = path;
+			file.bucket = bucket;
 			
-			if( meta != null )
+			String key = getKey( file.path );
+			
+			if( key.isEmpty() || !key.contains(".") )
 			{
-		        file.length = meta.getContentLength();
-		        file.isDir = false;
-		        file.exists = true;
-			} else {
-				file.exists = false;
 				file.isDir = true;
+			} else {
+				log.info( "testing for key existence: " + key );
+				file.s3object = s3.getObject( bucket, key );
+				ObjectMetadata meta = file.s3object.getObjectMetadata();
+				
+				if( meta != null )
+				{
+			        file.length = meta.getContentLength();
+			        file.isDir = false;
+			        file.exists = true;
+				} else {
+					file.exists = false;
+					file.isDir = true;
+				}
 			}
+			files.put( path, file );
 		}
 		
 		return file;
