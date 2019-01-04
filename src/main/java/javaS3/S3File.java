@@ -193,6 +193,7 @@ public class S3File
 			fileSystemCache.put( path, cachedByteList );
 			
 			cachedByteList.add( newCacheElement );
+			return;
 		}
 		
 		// check first to see if this is being appended to avoid searching - may be a likely case
