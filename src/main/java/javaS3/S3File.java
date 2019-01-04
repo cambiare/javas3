@@ -120,6 +120,8 @@ public class S3File
 	
 	public synchronized byte[] read( long offset, long length )
 	{
+		dumpCacheStats();
+		
 		String key = getKey(path);
 		
 		byte[] buffer;
@@ -181,7 +183,7 @@ public class S3File
 	}
 	
 	private void insertFileCache( byte[] data, Long offset )
-	{
+	{		
 		S3FileCache newCacheElement = new S3FileCache();
 		newCacheElement.setCacheData( data );
 		newCacheElement.setOffset( offset );
@@ -228,7 +230,7 @@ public class S3File
 		}
 		
 		offsetIdx = Math.abs( offsetIdx );
-		if( cachedByteList.size() >= Math.abs( offsetIdx ) + 1 )
+		if( cachedByteList.size() > Math.abs( offsetIdx ) + 1 )
 		{
 			S3FileCache rightWithinCache = cachedByteList.get( offsetIdx + 1 );
 			if( rightWithinCache.withinCache( offset + data.length ) )
@@ -249,8 +251,27 @@ public class S3File
 								(int)( data.length - (rightWithinCache.getOffset() - offset) ) ) );
 			}
 		}
-
+		
 		cachedByteList.add( offsetIdx, newCacheElement );
+	}
+	
+	private void dumpCacheStats( )
+	{
+		final String tab = "---- ";
+		
+		log.info( "cache: " );
+		
+		for( String path : fileSystemCache.keySet() )
+		{
+			log.info( tab + path );
+			
+			List<S3FileCache> cacheList = fileSystemCache.get( path );
+			for( S3FileCache cacheElement : cacheList )
+			{
+				log.info( tab + tab + cacheElement.getOffset() + tab + cacheElement.getCacheData().length );
+			}
+		}
+		
 	}
 }
 
