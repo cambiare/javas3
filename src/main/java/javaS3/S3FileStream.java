@@ -114,6 +114,8 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 			while( bytesRead < length && (b = stream.read()) != -1 )
 				buffer[bytesRead++] = (byte)b;
 			
+			log.info( "bytesRead: " + bytesRead );
+			
 			if( bytesRead < length )
 				buffer = Arrays.copyOf( buffer, bytesRead );
 			
