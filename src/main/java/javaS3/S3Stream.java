@@ -62,7 +62,11 @@ public class S3Stream
 	{
 		lastReadTime = System.currentTimeMillis();
 		offset.incrementAndGet();
-		return bufferedStream.read();
+		int b = bufferedStream.read();
+		if( b == -1 )
+			close();
+		
+		return b;
 		/*
 		byte b = streamBuffer.take();
 		offset++;
