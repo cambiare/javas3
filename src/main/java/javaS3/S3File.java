@@ -132,6 +132,9 @@ public class S3File
 			return new byte[0];
 		}
 		
+		if( this.length < offset+length )
+			length = this.length - offset;
+		
 		buffer = readFromCache( offset, length );
 		if( buffer != null )
 		{
