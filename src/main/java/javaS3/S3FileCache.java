@@ -24,7 +24,7 @@ public class S3FileCache implements Comparable<Long>
 	
 	public boolean withinCache( long offsetQuery )
 	{
-		return offsetQuery >= offset && offsetQuery < offset + cacheData.length;
+		return offsetQuery >= offset && offsetQuery <= offset + cacheData.length;
 	}
 	
 	@Override
