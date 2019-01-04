@@ -1,23 +1,31 @@
 package javaS3;
 
-import java.io.IOException;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 public class S3File 
 {
+	private static final int MAX_READAHEAD_SIZE = 20 * 1024 * 1024; // 20MB
+	
+	final static Map<String, List<S3FileCache>> fileSystemCache = new HashMap<>();
+	
 	final static AmazonS3 	s3;
 	static {
 		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
@@ -112,31 +120,130 @@ public class S3File
 	
 	public synchronized byte[] read( long offset, long length )
 	{
-		byte[] buffer = new byte[(int)length];
+		String key = getKey(path);
+		
+		byte[] buffer;
 		
 		if( offset + length > this.length )
 		{
 			return new byte[0];
 		}
 		
+		buffer = readFromCache( offset, length );
+		if( buffer != null )
+			return buffer;
+		
 		try {
-			if( stream == null )
-			{
-				stream = s3object.getObjectContent();
-			}
+			GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset, MAX_READAHEAD_SIZE );
+			S3Object o = s3.getObject( request );
 			
-			int bytesRead = 0;
-			stream.reset();
-			stream.skip( offset );
-			bytesRead = stream.read( buffer, 0, (int)length );
+			buffer = new byte[MAX_READAHEAD_SIZE];
+			BufferedInputStream in = new BufferedInputStream( o.getObjectContent() );
+			
+			int bytesRead = in.read( buffer, 0, MAX_READAHEAD_SIZE );
+			
 			log.info( "bytes read: " + bytesRead );
 			
-			if( bytesRead < length )
+			if( bytesRead < MAX_READAHEAD_SIZE )
 				buffer = Arrays.copyOf( buffer, bytesRead );
+			
+			insertFileCache( buffer, offset );
+			
 		} catch( Exception e ) { 
 			log.error( "failed to read: ", e );
 		}
+		
 		return buffer;
 	}
 	
+	private byte[] readFromCache( Long offset, long length )
+	{
+		List<S3FileCache> fileCache = fileSystemCache.get( path );
+		if( fileCache == null )
+			return null;
+		
+		int idx = Collections.binarySearch( fileCache, offset );
+		if( idx < 0 )
+			return null;
+		
+		S3FileCache cacheHit = fileCache.get( idx );
+		if( !cacheHit.withinCache( offset+length ) )
+			return null;
+		
+		long cacheArrayOffset = offset - cacheHit.getOffset();
+		
+		return Arrays.copyOfRange( cacheHit.getCacheData(), (int)cacheArrayOffset, (int)cacheArrayOffset + (int)length );
+	}
+	
+	private void insertFileCache( byte[] data, Long offset )
+	{
+		S3FileCache newCacheElement = new S3FileCache();
+		newCacheElement.setCacheData( data );
+		newCacheElement.setOffset( offset );
+		
+		List<S3FileCache> cachedByteList = fileSystemCache.get( path );
+		if( cachedByteList == null )
+		{
+			cachedByteList = new LinkedList<>();
+			fileSystemCache.put( path, cachedByteList );
+		}
+		
+		// check first to see if this is being appended to avoid searching - may be a likely case
+		int cacheListSize = cachedByteList.size();
+		if( cacheListSize > 0 && cachedByteList.get( cacheListSize-1 ).compareTo( offset ) > 0 )
+		{
+			cachedByteList.add( newCacheElement );
+			return;
+		}
+		
+		
+		int offsetIdx = Collections.binarySearch( cachedByteList, offset );
+		if( offsetIdx > 0 )
+		{
+			S3FileCache leftWithinCache = cachedByteList.get( offsetIdx );
+			
+			if( leftWithinCache.withinCache( offset + data.length ) )
+			{
+				// this insert request is basically invalid.  it means there's already an overlapping cached
+				// object that should have been used for the original request.
+				log.warn( "cache insert overlap attempt: " + offset );
+				return;
+			}
+			
+			// chop the left side of the byte buffer and update the offset
+			int leftOffset = (int)(leftWithinCache.getOffset() + leftWithinCache.getCacheData().length);
+			newCacheElement.setCacheData( 
+					Arrays.copyOfRange( 
+							newCacheElement.getCacheData(), 
+							leftOffset,
+							(int)(newCacheElement.getCacheData().length - (leftOffset - offset)) ) );
+		}
+		
+		S3FileCache rightWithinCache = cachedByteList.get( offsetIdx + 1 );
+		if( rightWithinCache.withinCache( offset + data.length ) )
+		{			
+			if( rightWithinCache.withinCache( offset ) )
+			{
+				// this insert request is basically invalid.  it means there's already an overlapping cached
+				// object that should have been used for the original request.
+				log.warn( "cache insert overlap attempt: " + offset );
+				return;
+			}
+			
+			// chop the right side of the byte buffer and update the offset
+			newCacheElement.setCacheData( 
+					Arrays.copyOfRange( 
+							newCacheElement.getCacheData(), 
+							0,
+							(int)( data.length - (rightWithinCache.getOffset() - offset) ) ) );
+		}		
+	}
 }
+
+
+
+
+
+
+
+
