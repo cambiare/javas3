@@ -28,10 +28,7 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
-				if( stream.isLocked() )
-					log.info( "stream is locked");
-				
-				if( !stream.isLocked() && offset.equals( stream.getOffset() ) )
+				if( Math.abs( offset.longValue() - stream.getOffset() ) < (1024 * 1024) )
 				{	
 					log.info( "found stream with offsets: " + offset );
 					return stream;

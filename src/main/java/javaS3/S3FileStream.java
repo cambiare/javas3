@@ -101,7 +101,8 @@ public class S3FileStream
 			
 			log.info( "found stream and locking" );
 			
-			//stream.lock();
+			while( !stream.lock( offset ) )
+				Thread.sleep( 10 );
 		
 			buffer = new byte[(int)length];
 			int b = -1;

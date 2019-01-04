@@ -61,9 +61,14 @@ public class S3Stream
 		return locked;
 	}
 	
-	public void lock( )
-	{
-		locked = true;
+	public boolean lock( long offset )
+	{		
+		if( !locked && this.offset.get() == offset )
+		{
+			locked = true;
+			return true;
+		}
+		return false;
 	}
 	
 	public void unlock( )
