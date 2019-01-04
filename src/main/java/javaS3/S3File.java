@@ -22,6 +22,7 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 public class S3File 
 {
+	
 	private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 	
 	final static Map<String, List<S3FileCache>> fileSystemCache = new HashMap<>();
@@ -120,6 +121,8 @@ public class S3File
 	
 	public synchronized byte[] read( long offset, long length )
 	{
+		long s3ReadOffset = offset;
+		
 		dumpCacheStats();
 		
 		String key = getKey(path);
@@ -139,12 +142,18 @@ public class S3File
 		if( buffer != null )
 		{
 			log.info( "cache hit: " + path );
-			return buffer;
+			if( buffer.length == length )
+				return buffer;
+			
+			log.info( "not full cache hit" );
+			
+			s3ReadOffset = offset + buffer.length;
+			
 		}
 		
 		log.info( "cache miss: " + path );
 		try {
-			GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset, MAX_READAHEAD_SIZE );
+			GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( s3ReadOffset, MAX_READAHEAD_SIZE );
 			S3Object o = s3.getObject( request );
 			
 			buffer = new byte[MAX_READAHEAD_SIZE];
@@ -182,7 +191,7 @@ public class S3File
 		
 		S3FileCache cacheHit = fileCache.get( idx );
 		if( !cacheHit.withinCache( offset+length ) )
-			return null;
+			length = cacheHit.getOffset() + cacheHit.getCacheData().length - offset;
 		
 		log.info( "found usable file cache object" );
 		
