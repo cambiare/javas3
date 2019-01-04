@@ -27,7 +27,7 @@ public class S3Stream
 	
 	private BufferedInputStream bufferedStream;
 	private long offset;
-	private BlockingQueue<Byte> streamBuffer;
+	//private BlockingQueue<Byte> streamBuffer;
 	
 	public S3Stream( String bucket, String key, long offset )
 	{
@@ -38,7 +38,7 @@ public class S3Stream
 		
 		bufferedStream = new BufferedInputStream( o.getObjectContent(), IO_BUFFER_SIZE );
 		
-		streamBuffer = new ArrayBlockingQueue<>( 1 * 1024 * 1024 );
+		//streamBuffer = new ArrayBlockingQueue<>( 1 * 1024 * 1024 );
 	}
 	
 	public long getOffset( )

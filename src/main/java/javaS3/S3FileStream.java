@@ -13,7 +13,6 @@ import org.apache.log4j.Logger;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 
@@ -37,7 +36,7 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 	private long					length;
 	private String 					bucket;
 	
-	S3StreamPool					streamPool = new S3StreamPool();
+	private static S3StreamPool					streamPool = new S3StreamPool();
 	
 	
 	private static Map<String, S3FileStream> 	files = new HashMap<>();

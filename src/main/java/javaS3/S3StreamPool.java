@@ -19,20 +19,19 @@ public class S3StreamPool
 		List<S3Stream> streams = pool.get( bucket+key );
 		if( streams != null )
 		{
-			log.info( "open streams to file: " + streams.size() + " " + key );
 			streams = new ArrayList<>();
 			pool.put( bucket+key, streams );
 		}
 		
+		log.info( "open streams to file: " + streams.size() + " " + key );
+		
 		for( S3Stream stream : streams )
 		{
 			if( !stream.isLocked() && offset.equals( stream.getOffset() ) )
-			{
-				stream.lock();
 				return stream;
-			}
 		}
 		
+		log.info( "opening new stream to file: " + key );
 		S3Stream stream = new S3Stream(bucket, key, offset);
 		streams.add( stream );
 
