@@ -163,7 +163,7 @@ public class S3File
 			log.error( "failed to read: ", e );
 		}
 		
-		return buffer;
+		return readFromCache( offset, length );
 	}
 	
 	private byte[] readFromCache( Long offset, long length )
