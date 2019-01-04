@@ -126,7 +126,7 @@ public class S3File
 		
 		if( offset + length > this.length )
 		{
-			log.error( "attempting to read beyond file length" );
+			log.error( "attempting to read beyond file length: " + offset + " file length: " + this.length );
 			return new byte[0];
 		}
 		
