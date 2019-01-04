@@ -124,7 +124,7 @@ public class S3File
 		
 		byte[] buffer;
 		
-		if( offset + length > this.length )
+		if( offset > this.length )
 		{
 			log.error( "attempting to read beyond file length: " + offset + " file length: " + this.length );
 			return new byte[0];
