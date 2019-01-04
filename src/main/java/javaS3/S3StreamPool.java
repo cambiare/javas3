@@ -21,14 +21,17 @@ public class S3StreamPool
 	
 	private void timeoutUnusedStreams( )
 	{
-		for( String key : pool.keySet() )
+		while( true )
 		{
-			for( S3Stream stream : pool.get(key) )
+			for( String key : pool.keySet() )
 			{
-				if( (System.currentTimeMillis() - stream.getLastReadTime()) > 15000 )
+				for( S3Stream stream : pool.get(key) )
 				{
-					stream.close();
-					pool.get(key).remove( stream );
+					if( (System.currentTimeMillis() - stream.getLastReadTime()) > 15000 )
+					{
+						stream.close();
+						pool.get(key).remove( stream );
+					}
 				}
 			}
 		}

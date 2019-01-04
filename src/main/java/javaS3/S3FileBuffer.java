@@ -20,7 +20,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
-public class S3File 
+public class S3FileBuffer 
 {
 	
 	private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
@@ -32,7 +32,7 @@ public class S3File
 		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
 	}
 	
-	private static final Logger log = Logger.getLogger( S3File.class );
+	private static final Logger log = Logger.getLogger( S3FileBuffer.class );
 	
 	private S3Object				s3object;
 	private String					path;
@@ -41,7 +41,7 @@ public class S3File
 	private boolean					isDir;
 	private long					length;
 	private String 					bucket;
-	private static Map<String, S3File> 	files = new HashMap<>();
+	private static Map<String, S3FileBuffer> 	files = new HashMap<>();
 	
 	private static String getKey( String path )	{ return path.replaceFirst( "^/", "" ); }
 	
@@ -55,12 +55,12 @@ public class S3File
 	
 	public S3Object getS3object() { return s3object; }
 	
-	public static S3File getFile( String bucket, String path )
+	public static S3FileBuffer getFile( String bucket, String path )
 	{
-		S3File file = files.get( path );
+		S3FileBuffer file = files.get( path );
 		if( file == null )
 		{
-			file = new S3File();
+			file = new S3FileBuffer();
 			file.path = path;
 			file.bucket = bucket;
 			
