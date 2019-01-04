@@ -126,13 +126,18 @@ public class S3File
 		
 		if( offset + length > this.length )
 		{
+			log.error( "attempting to read beyond file length" );
 			return new byte[0];
 		}
 		
 		buffer = readFromCache( offset, length );
 		if( buffer != null )
+		{
+			log.info( "cache hit: " + path );
 			return buffer;
+		}
 		
+		log.info( "cache miss: " + path );
 		try {
 			GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset, MAX_READAHEAD_SIZE );
 			S3Object o = s3.getObject( request );
