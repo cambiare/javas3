@@ -14,7 +14,7 @@ public class S3StreamPool
 	private static final Logger log = Logger.getLogger( S3StreamPool.class );
 
 	
-	public synchronized S3Stream get( String bucket, String key, Long offset )
+	public S3Stream get( String bucket, String key, Long offset )
 	{
 		try {
 			List<S3Stream> streams = pool.get( bucket+key );
