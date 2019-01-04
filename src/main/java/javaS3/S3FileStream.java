@@ -108,9 +108,7 @@ public class S3FileStream
 			int bytesRead = 0;
 			while( bytesRead < length && (b = stream.read()) != -1 )
 				buffer[bytesRead++] = (byte)b;
-			
-			log.info( "bytesRead: " + bytesRead );
-			
+						
 			if( bytesRead < length )
 				buffer = Arrays.copyOf( buffer, bytesRead );
 			

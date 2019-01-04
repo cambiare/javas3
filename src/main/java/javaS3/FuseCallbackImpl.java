@@ -1,18 +1,13 @@
 package javaS3;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.file.Paths;
 
 import org.apache.log4j.Logger;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import jnr.ffi.Pointer;
@@ -61,8 +56,6 @@ public class FuseCallbackImpl extends FuseStubFS
 	@Override
 	public int read(String path, Pointer buf, long size, long offset, FuseFileInfo fi) 
 	{
-		log.info( "read called: " + path + " - " + size + " - " + offset );
-
 		S3FileStream file = S3FileStream.getFile( bucket, path );
 		
 		byte[] buffer = file.read( offset, size );

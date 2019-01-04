@@ -2,8 +2,6 @@ package javaS3;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
@@ -17,7 +15,7 @@ public class S3Stream
 {
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
-	private final int IO_BUFFER_SIZE = 32 * 1024; // 32KB
+	private final int IO_BUFFER_SIZE = 128 * 1024; // 32KB
 		
 	final static AmazonS3 	s3;
 	static {
@@ -48,6 +46,11 @@ public class S3Stream
 		return offset.get();
 	}
 	
+	public long getLastReadTime( )
+	{
+		return lastReadTime;
+	}
+	
 	public int read( ) throws IOException
 	{
 		lastReadTime = System.currentTimeMillis();
@@ -58,6 +61,15 @@ public class S3Stream
 		offset++;
 		return b;
 		*/
+	}
+	
+	public void close( )
+	{
+		try {
+			bufferedStream.close();
+		} catch (IOException e) {
+			log.error( "failed to close S3Stream", e );
+		}
 	}
 	
 	public boolean isLocked( )

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
 import org.apache.log4j.Logger;
 
@@ -13,6 +14,27 @@ public class S3StreamPool
 	
 	private static final Logger log = Logger.getLogger( S3StreamPool.class );
 
+	public S3StreamPool( )
+	{
+		Executors.newSingleThreadExecutor().submit( ()-> {
+			timeoutUnusedStreams();
+		});
+	}
+	
+	private void timeoutUnusedStreams( )
+	{
+		for( String key : pool.keySet() )
+		{
+			for( S3Stream stream : pool.get(key) )
+			{
+				if( (System.currentTimeMillis() - stream.getLastReadTime()) > 15000 )
+				{
+					stream.close();
+					pool.get(key).remove( stream );
+				}
+			}
+		}
+	}
 	
 	public S3Stream get( String bucket, String key, Long offset )
 	{
@@ -24,7 +46,7 @@ public class S3StreamPool
 				pool.put( bucket+key, streams );
 			}
 			
-			log.info( "searching for stream to file: " + streams.size() + " " + key );
+			//log.debug( "searching for stream to file: " + streams.size() + " " + key );
 			
 			for( S3Stream stream : streams )
 			{
