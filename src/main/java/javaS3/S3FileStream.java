@@ -90,7 +90,6 @@ public class S3FileStream
 		
 		S3Stream stream = null;
 		try {
-			log.info( "getting stream from pool" );
 			stream = streamPool.get(bucket, getKey(path), offset);
 			
 			if( stream == null )
@@ -98,12 +97,9 @@ public class S3FileStream
 				log.error( "failed to open stream for: " + path );
 				return new byte[0];
 			}
-			
-			log.info( "found stream and locking" );
-			
+						
 			while( !stream.lock( offset ) )
 			{
-				log.info( "waiting for lock: " + offset );
 				Thread.sleep( 10 );
 			}
 			

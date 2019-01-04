@@ -30,16 +30,13 @@ public class S3StreamPool
 			{
 				if( Math.abs( offset.longValue() - stream.getOffset() ) < (1024 * 1024) )
 				{	
-					log.info( "found stream with offsets: " + offset );
 					return stream;
 				}
 			}
 			
-			log.info( "opening new stream to file: " + key );
 			S3Stream stream = new S3Stream(bucket, key, offset);
 			streams.add( stream );
 	
-			
 			return stream;
 		} catch( Exception e ) {
 			log.error( "failed to create S3Stream within S3StreamPool: ", e );

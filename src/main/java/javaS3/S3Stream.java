@@ -67,7 +67,6 @@ public class S3Stream
 	
 	public boolean lock( long offset )
 	{		
-		log.info( "lock: " + offset );
 		if( !locked && this.offset.get() == offset )
 		{
 			locked = true;
@@ -78,7 +77,6 @@ public class S3Stream
 	
 	public void unlock( )
 	{
-		log.info( "unlock: " + offset );
 		locked = false;
 	}
 }
