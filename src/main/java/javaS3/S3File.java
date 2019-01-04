@@ -169,13 +169,19 @@ public class S3File
 		if( fileCache == null )
 			return null;
 		
+		log.info( "found cache for file: " + path );
+		
 		int idx = Collections.binarySearch( fileCache, offset );
 		if( idx < 0 )
 			return null;
 		
+		log.info( "found index of element with binary search" );
+		
 		S3FileCache cacheHit = fileCache.get( idx );
 		if( !cacheHit.withinCache( offset+length ) )
 			return null;
+		
+		log.info( "found usable file cache object" );
 		
 		long cacheArrayOffset = offset - cacheHit.getOffset();
 		
