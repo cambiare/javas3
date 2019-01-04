@@ -224,24 +224,30 @@ public class S3File
 							(int)(newCacheElement.getCacheData().length - (leftOffset - offset)) ) );
 		}
 		
-		S3FileCache rightWithinCache = cachedByteList.get( offsetIdx + 1 );
-		if( rightWithinCache.withinCache( offset + data.length ) )
-		{			
-			if( rightWithinCache.withinCache( offset ) )
-			{
-				// this insert request is basically invalid.  it means there's already an overlapping cached
-				// object that should have been used for the original request.
-				log.warn( "cache insert overlap attempt: " + offset );
-				return;
+		offsetIdx = Math.abs( offsetIdx );
+		if( cachedByteList.size() >= Math.abs( offsetIdx ) + 1 )
+		{
+			S3FileCache rightWithinCache = cachedByteList.get( offsetIdx + 1 );
+			if( rightWithinCache.withinCache( offset + data.length ) )
+			{			
+				if( rightWithinCache.withinCache( offset ) )
+				{
+					// this insert request is basically invalid.  it means there's already an overlapping cached
+					// object that should have been used for the original request.
+					log.warn( "cache insert overlap attempt: " + offset );
+					return;
+				}
+				
+				// chop the right side of the byte buffer and update the offset
+				newCacheElement.setCacheData( 
+						Arrays.copyOfRange( 
+								newCacheElement.getCacheData(), 
+								0,
+								(int)( data.length - (rightWithinCache.getOffset() - offset) ) ) );
 			}
-			
-			// chop the right side of the byte buffer and update the offset
-			newCacheElement.setCacheData( 
-					Arrays.copyOfRange( 
-							newCacheElement.getCacheData(), 
-							0,
-							(int)( data.length - (rightWithinCache.getOffset() - offset) ) ) );
-		}		
+		}
+
+		cachedByteList.add( offsetIdx, newCacheElement );
 	}
 }
 
