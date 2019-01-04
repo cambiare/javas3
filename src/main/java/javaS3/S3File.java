@@ -187,10 +187,12 @@ public class S3File
 		newCacheElement.setOffset( offset );
 		
 		List<S3FileCache> cachedByteList = fileSystemCache.get( path );
-		if( cachedByteList == null )
+		if( cachedByteList == null || cachedByteList.size() <= 0 )
 		{
 			cachedByteList = new LinkedList<>();
 			fileSystemCache.put( path, cachedByteList );
+			
+			cachedByteList.add( newCacheElement );
 		}
 		
 		// check first to see if this is being appended to avoid searching - may be a likely case
