@@ -100,7 +100,7 @@ public class S3FileStream
 			
 			log.info( "found stream and locking" );
 			
-			stream.lock();
+			//stream.lock();
 		
 			buffer = new byte[(int)length];
 			int b = -1;
