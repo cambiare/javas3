@@ -111,7 +111,7 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 			buffer = new byte[(int)length];
 			int b = -1;
 			int bytesRead = 0;
-			while( (b = stream.read()) != -1 )
+			while( bytesRead <= length && (b = stream.read()) != -1 )
 				buffer[bytesRead++] = (byte)b;
 			
 			if( bytesRead < length )
