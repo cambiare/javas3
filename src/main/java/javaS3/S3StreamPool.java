@@ -30,7 +30,10 @@ public class S3StreamPool
 			{
 				log.info( "stream offset: " + stream.getOffset() + " looking for: " + offset );
 				if( !stream.isLocked() && offset.equals( stream.getOffset() ) )
+				{	
+					log.info( "found stream with offsets" );
 					return stream;
+				}
 			}
 			
 			log.info( "opening new stream to file: " + key );
