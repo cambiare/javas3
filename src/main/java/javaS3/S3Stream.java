@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -13,25 +14,22 @@ import com.amazonaws.services.s3.model.S3Object;
 public class S3Stream 
 {
 	private final int IO_BUFFER_SIZE = 32 * 1024; // 32KB
-	
-	//private final 
-	
+		
 	final static AmazonS3 	s3;
 	static {
 		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
 	}
 	
-	
-	private boolean locked;
+	private boolean locked = false;
 	private long lastReadTime = System.currentTimeMillis();
 	
 	private BufferedInputStream bufferedStream;
-	private long offset;
+	private AtomicLong offset;
 	//private BlockingQueue<Byte> streamBuffer;
 	
 	public S3Stream( String bucket, String key, long offset )
 	{
-		this.offset = offset;
+		this.offset = new AtomicLong( offset );
 		
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
 		S3Object o = s3.getObject( request );
@@ -43,13 +41,13 @@ public class S3Stream
 	
 	public long getOffset( )
 	{
-		return offset;
+		return offset.get();
 	}
 	
 	public int read( ) throws IOException
 	{
 		lastReadTime = System.currentTimeMillis();
-		offset++;
+		offset.incrementAndGet();
 		return bufferedStream.read();
 		/*
 		byte b = streamBuffer.take();

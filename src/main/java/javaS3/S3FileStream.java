@@ -1,11 +1,7 @@
 package javaS3;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +14,6 @@ import com.amazonaws.services.s3.model.S3Object;
 
 public class S3FileStream 
 {
-private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 	
 	final static Map<String, List<S3FileCache>> fileSystemCache = new HashMap<>();
 	
@@ -88,10 +83,9 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 		return file;
 	}
 	
-	public synchronized byte[] read( long offset, long length )
+	public byte[] read( long offset, long length )
 	{
 		byte[] buffer = null;
-		
 		
 		S3Stream stream = null;
 		try {
