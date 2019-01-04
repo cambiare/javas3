@@ -83,7 +83,7 @@ public class S3FileStream
 		return file;
 	}
 	
-	public byte[] read( long offset, long length )
+	public synchronized byte[] read( long offset, long length )
 	{
 		byte[] buffer = null;
 		
