@@ -17,7 +17,7 @@ public class S3StreamPool
 	public S3Stream get( String bucket, String key, Long offset )
 	{
 		List<S3Stream> streams = pool.get( bucket+key );
-		if( streams != null )
+		if( streams == null )
 		{
 			streams = new ArrayList<>();
 			pool.put( bucket+key, streams );
