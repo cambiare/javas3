@@ -16,9 +16,7 @@ public class S3StreamPool
 
 	public S3StreamPool( )
 	{
-		Executors.newSingleThreadExecutor().submit( ()-> {
-			timeoutUnusedStreams();
-		});
+		Executors.newSingleThreadExecutor().execute( ()-> { timeoutUnusedStreams(); } );
 	}
 	
 	private void timeoutUnusedStreams( )
