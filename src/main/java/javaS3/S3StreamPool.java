@@ -28,11 +28,12 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
-				log.info( "stream offset: " + stream.getOffset() + " looking for: " + offset );
 				if( !stream.isLocked() && offset.equals( stream.getOffset() ) )
 				{	
-					log.info( "found stream with offsets" );
+					log.info( "found stream with offsets: " + offset );
 					return stream;
+				} else {
+					log.info( "missed stream with offsets: " + offset );
 				}
 			}
 			
