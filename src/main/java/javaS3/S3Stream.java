@@ -16,7 +16,9 @@ public class S3Stream
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
 	private final int IO_BUFFER_SIZE = 128 * 1024; // 32KB
-		
+	
+	private boolean closed = false;
+	
 	final static AmazonS3 	s3;
 	static {
 		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
@@ -51,6 +53,11 @@ public class S3Stream
 		return lastReadTime;
 	}
 	
+	public boolean isClosed()
+	{
+		return closed;
+	}
+	
 	public int read( ) throws IOException
 	{
 		lastReadTime = System.currentTimeMillis();
@@ -67,6 +74,7 @@ public class S3Stream
 	{
 		try {
 			bufferedStream.close();
+			closed = true;
 		} catch (IOException e) {
 			log.error( "failed to close S3Stream", e );
 		}

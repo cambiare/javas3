@@ -67,7 +67,7 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
-				if( Math.abs( offset.longValue() - stream.getOffset() ) < (1024 * 1024) )
+				if( !stream.isClosed() && Math.abs( offset.longValue() - stream.getOffset() ) < (1024 * 1024) )
 				{	
 					return stream;
 				}
