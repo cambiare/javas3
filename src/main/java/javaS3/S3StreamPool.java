@@ -37,7 +37,10 @@ public class S3StreamPool
 				}
 				
 				for( S3Stream stream : deleteList )
+				{
+					log.info( "removing timed out stream: " + key );
 					pool.get(key).remove( stream );
+				}
 			}
 			
 			try {
