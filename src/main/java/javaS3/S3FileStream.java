@@ -117,7 +117,7 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 			if( bytesRead < length )
 				buffer = Arrays.copyOf( buffer, bytesRead );
 			
-		} catch (IOException e) {
+		} catch (Exception e) {
 			log.error( "failed to read from S3Stream", e );
 			buffer = null;
 		} finally {
