@@ -22,7 +22,7 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 public class S3File 
 {
-	private static final int MAX_READAHEAD_SIZE = 20 * 1024 * 1024; // 20MB
+	private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 	
 	final static Map<String, List<S3FileCache>> fileSystemCache = new HashMap<>();
 	
