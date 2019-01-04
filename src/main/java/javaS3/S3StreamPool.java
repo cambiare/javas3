@@ -32,8 +32,6 @@ public class S3StreamPool
 				{	
 					log.info( "found stream with offsets: " + offset );
 					return stream;
-				} else {
-					log.info( "missed stream with offsets: " + offset );
 				}
 			}
 			
