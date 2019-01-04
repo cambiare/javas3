@@ -92,9 +92,18 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 	{
 		byte[] buffer = null;
 		
+		
 		S3Stream stream = null;
 		try {
+			log.info( "getting stream from pool" );
 			stream = streamPool.get(bucket, getKey(path), offset);
+			
+			if( stream == null )
+			{
+				log.error( "failed to open stream for: " + path );
+				return new byte[0];
+			}
+			
 			stream.lock();
 		
 			buffer = new byte[(int)length];
