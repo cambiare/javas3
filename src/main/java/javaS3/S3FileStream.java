@@ -50,9 +50,10 @@ public class S3FileStream
 	
 	public static S3FileStream getFile( String bucket, String path )
 	{
-		S3FileStream file = files.get( path );
+		S3FileStream file = files.get( bucket+path );
 		if( file == null )
 		{
+			log.info( "returning new S3FileStream object" );
 			file = new S3FileStream();
 			file.path = path;
 			file.bucket = bucket;
@@ -77,7 +78,7 @@ public class S3FileStream
 					file.isDir = true;
 				}
 			}
-			files.put( path, file );
+			files.put( bucket+path, file );
 		}
 		
 		return file;
