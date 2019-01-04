@@ -21,6 +21,8 @@ public class S3StreamPool
 	
 	private void timeoutUnusedStreams( )
 	{
+		List<S3Stream> deleteList = new ArrayList<>();
+		
 		while( true )
 		{
 			for( String key : pool.keySet() )
@@ -30,9 +32,18 @@ public class S3StreamPool
 					if( (System.currentTimeMillis() - stream.getLastReadTime()) > 15000 )
 					{
 						stream.close();
-						pool.get(key).remove( stream );
+						deleteList.add( stream );
 					}
 				}
+				
+				for( S3Stream stream : deleteList )
+					pool.get(key).remove( stream );
+			}
+			
+			try {
+				Thread.sleep( 1000 );
+			} catch (InterruptedException e) {
+				log.error( "interrupted in timeoutUnusedStreams", e );
 			}
 		}
 	}
