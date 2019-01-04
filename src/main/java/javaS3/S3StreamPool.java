@@ -24,7 +24,7 @@ public class S3StreamPool
 				pool.put( bucket+key, streams );
 			}
 			
-			log.info( "open streams to file: " + streams.size() + " " + key );
+			log.info( "searching for stream to file: " + streams.size() + " " + key );
 			
 			for( S3Stream stream : streams )
 			{
@@ -36,6 +36,7 @@ public class S3StreamPool
 			S3Stream stream = new S3Stream(bucket, key, offset);
 			streams.add( stream );
 	
+			
 			return stream;
 		} catch( Exception e ) {
 			log.error( "failed to create S3Stream within S3StreamPool: ", e );

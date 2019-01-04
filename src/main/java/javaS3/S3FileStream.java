@@ -104,6 +104,8 @@ private static final int MAX_READAHEAD_SIZE = 1 * 1024 * 1024; // 1MB
 				return new byte[0];
 			}
 			
+			log.info( "found stream and locking" );
+			
 			stream.lock();
 		
 			buffer = new byte[(int)length];
