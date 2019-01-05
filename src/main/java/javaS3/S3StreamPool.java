@@ -69,10 +69,10 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
-				synchronized( poolKey )
+				synchronized( this )
 				{
 					if( !stream.isLocked() && !stream.isClosed() && offset.longValue() == stream.getOffset() )
-					{	
+					{
 						stream.lock(offset);
 						return stream;
 					}
