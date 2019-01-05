@@ -78,8 +78,6 @@ public class S3StreamPool
 						return stream;
 					}
 				}
-				
-				log.info( "stream: " + stream.getOffset() + " --- search offset: " + offset );
 			}
 			
 			// reuse a dead stream
