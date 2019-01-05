@@ -96,10 +96,10 @@ public class S3FileStream
 				return new byte[0];
 			}
 						
-//			while( !stream.lock( offset ) )
-//			{
-//				Thread.sleep( 10 );
-//			}
+			while( !stream.lock( offset ) )
+			{
+				Thread.sleep( 10 );
+			}
 			
 			buffer = new byte[(int)length];
 			int b = -1;
