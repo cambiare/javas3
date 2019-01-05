@@ -57,8 +57,6 @@ public class S3StreamPool
 	{
 		String poolKey = bucket + key;
 		
-		synchronized( this ) {
-
 		try {
 			List<S3Stream> streams = pool.get( poolKey );
 			if( streams == null )
@@ -85,7 +83,6 @@ public class S3StreamPool
 			log.error( "failed to create S3Stream within S3StreamPool: ", e );
 		}
 		
-		}
 		return null;
 	}
 	
