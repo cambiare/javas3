@@ -102,7 +102,7 @@ public class S3FileStream
 			buffer = new byte[(int)length];
 			int b = -1;
 			int bytesRead = 0;
-			while( bytesRead < length && (b = stream.read()) != -1 )
+			while( bytesRead < length && (b = stream.read(offset+bytesRead)) != -1 )
 				buffer[bytesRead++] = (byte)b;
 						
 			if( bytesRead < length )
@@ -110,14 +110,10 @@ public class S3FileStream
 				log.info( "bytesRead neq to length: " + bytesRead + " - " + length );
 				buffer = Arrays.copyOf( buffer, bytesRead );
 			}
-			stream.unlock();
 			
 		} catch (Exception e) {
 			log.error( "failed to read from S3Stream", e );
 			buffer = null;
-		} finally {
-			if( stream != null )
-				stream.unlock();
 		}
 		
 		if( buffer == null )

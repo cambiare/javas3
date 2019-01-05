@@ -70,29 +70,8 @@ public class S3StreamPool
 			// search for current stream for this request
 			for( S3Stream stream : streams )
 			{
-				if( !stream.isLocked() && !stream.isClosed() )
-				{
-					if( offset == stream.getOffset() )
-					{
-						stream.lock();
-						return stream;
-					}
-				}
-			}
-			
-			// reuse a dead stream
-			for( S3Stream stream : streams )
-			{
-				// can't go backwards
-				if( offset < stream.getOffset() )
-					continue;
-				
-				if( !stream.isLocked() && !stream.isClosed() )
-				{
-					stream.skip( offset - stream.getOffset() );
-					stream.lock();
+				if( stream.within( offset ) )
 					return stream;
-				}
 			}
 			
 			log.info( "creating new stream: " + streams.size() );

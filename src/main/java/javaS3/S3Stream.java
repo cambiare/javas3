@@ -2,10 +2,14 @@ package javaS3;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 
@@ -19,7 +23,12 @@ public class S3Stream
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
 	private final int IO_BUFFER_SIZE = 1024*32; // 32KB
-	private final int STREAM_BUFFER_SIZE = 1 * 1024 * 1024; // 1MB
+	private final int STREAM_BUFFER_BLOCK_SIZE = 128 * 1024; // 128KB
+	private final int BUFFER_TIMEOUT = 1000 * 3; // 3 second buffer timeout
+	private final int READ_AHEAD_SIZE = 1024 * 1024; // 1MB read ahead
+	
+	
+	private final List<BufferBlock> buffers = new LinkedList<>();
 	
 	private boolean closed = false;
 	
@@ -28,64 +37,69 @@ public class S3Stream
 		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
 	}
 	
-	private boolean locked = false;
 	private long lastReadTime = System.currentTimeMillis();
 	
 	private BufferedInputStream bufferedStream;
 	private AtomicLong offset;
-	private BlockingQueue<Byte> streamBuffer;
+	private AtomicLong maxReadLocation;
+	private Lock bufferFillLock = new ReentrantLock();
+	private Lock readWaitLock = new ReentrantLock();
 	
 	public S3Stream( String bucket, String key, long offset )
 	{
 		this.offset = new AtomicLong( offset );
+		this.maxReadLocation = new AtomicLong( offset );
 		
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
 		S3Object o = s3.getObject( request );
 		
 		bufferedStream = new BufferedInputStream( o.getObjectContent(), IO_BUFFER_SIZE );
-		streamBuffer = new ArrayBlockingQueue<>( STREAM_BUFFER_SIZE );
 		
-		startBufferThread();
+		fillBuffers();
 	}
 	
-	private void startBufferThread( )
+	private void fillBuffers( )
 	{
 		Executors.newSingleThreadExecutor().execute( ()-> {
 			try {
-				int b = -1;
-				while( (b = bufferedStream.read() ) != -1 )
-					streamBuffer.put( (byte)b );
+				boolean firstRun = true;
+				byte[] buffer;
+				
+				int bytesRead = -1;
+				while( !closed )
+				{
+					if( firstRun ) firstRun = false;
+					else
+						bufferFillLock.wait();
+					
+					while( buffers.size() <= 0 || 
+						  (buffers.get( buffers.size() -1 ).maxOffset() - maxReadLocation.get()) < READ_AHEAD_SIZE )
+					{
+						buffer = new byte[STREAM_BUFFER_BLOCK_SIZE];
+						bytesRead = bufferedStream.read( buffer );
+						if( bytesRead < buffer.length )
+						{
+							if( bytesRead < 0 )
+								closed = true;
+							else if( bytesRead > 0 )
+								buffer = Arrays.copyOf( buffer, bytesRead );
+							else {
+								Thread.sleep( 10 );
+								continue;
+							}
+						}
+						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
+						readWaitLock.notifyAll();
+					}
+				}
 				
 				closed = true;
-				log.info( "exiting buffer thread" )
-				;
+				log.info( "exiting buffer thread" );
 			} catch( Exception e ) {
 				log.error( "buffer thread has failed ", e );
 				closed = true;
 			}
 		});
-	}
-	
-	public boolean skip( long skip )
-	{
-		log.info( "advancing stream: " + skip );
-		
-		if( skip > streamBuffer.size() )
-		{
-			log.info( "rejecting skip request: " + skip );
-			return false;
-		}
-		
-		try {
-			for( int i=0; i < skip; i++ )
-				streamBuffer.take();
-		} catch (InterruptedException e) {
-			log.error( "skip attempt failed - stream is dead - closing", e );
-			closed = true;
-			return false;
-		}
-		
-		return true;
 	}
 	
 	public long getOffset( )
@@ -100,34 +114,73 @@ public class S3Stream
 	
 	public boolean isClosed()
 	{
-		return closed && streamBuffer.size() <= 0;
+		findBufferForLocation( maxReadLocation.get() );
+		return closed && buffers.size() <= 0;
 	}
 	
-	public int read( ) throws IOException
+	public boolean within( long offset )
+	{
+		// maybe buffers haven't been filled yet
+		if( buffers.size() <= 0 )
+			return offset > this.offset.get() && offset < this.offset.get() + READ_AHEAD_SIZE;
+		
+		
+		if( offset > buffers.get(0).getOffset() && offset < maxReadLocation.get() + READ_AHEAD_SIZE )
+			return true;
+		
+		return false;
+	}
+	
+	private BufferBlock findBufferForLocation( long location )
+	{
+		for( BufferBlock buffer : buffers )
+		{
+			if( buffer.getLastAccessTime() > BUFFER_TIMEOUT )
+				buffers.remove( buffer );
+			
+			if( buffer.within( location ) )
+				return buffer;
+		}
+		return null;
+	}
+	
+	public int read( long location ) throws TimeoutException
 	{
 		if( isClosed() )
 			return -1;
 
+		BufferBlock buffer = null;
+		int bufferWaitTTL = 0;
+		while( (buffer = findBufferForLocation( location ) ) == null )
+		{
+			bufferFillLock.notify();
+			
+			try { 
+				readWaitLock.wait( 2 * 1000 ); 
+			} catch (InterruptedException e) { log.error( "interrupted in read wait", e ); }
+			
+			if( bufferWaitTTL++ >= 5 )
+			{
+				log.error( "timed out while waiting for buffers to fill" );
+				throw new TimeoutException();
+			}
+		}		
+		
+		int b = Byte.toUnsignedInt( buffer.read(location) );
+		
+		//long updatedLocation = 
+		maxReadLocation.updateAndGet( x -> Math.max( location, maxReadLocation.get() ) );
+//		if( updatedLocation == location && buffers.size() > 0 && buffers.get(buffers.size()-1).maxLocation() > 0 )
+//			bufferFillLock.notify();
+		
 		lastReadTime = System.currentTimeMillis();
 		
-		try {
-			int b = Byte.toUnsignedInt( streamBuffer.take().byteValue() );
-			offset.incrementAndGet();
-			if( b < 0 )
-				log.info( "WHAT? - returning < 0 byte value?" );
-			
-			return b;
-		} catch (InterruptedException e) {
-			log.error( "interrupted during streamBuffer take", e );
-			closed = true;
-			return -1;
-		}
+		return b;
 	}
 	
 	public void close( )
 	{
 		try {
-			streamBuffer = null;
 			bufferedStream.close();
 			closed = true;
 		} catch (IOException e) {
@@ -135,23 +188,42 @@ public class S3Stream
 		}
 	}
 	
-	public boolean isLocked( )
+	class BufferBlock
 	{
-		return locked;
-	}
-	
-	public boolean lock( )
-	{		
-		if( !locked )
+		private long offset;
+		private long lastAccessTime;
+		private final byte[] buffer;
+		
+		public BufferBlock( byte[] buffer, long offset )
 		{
-			locked = true;
-			return true;
+			this.buffer = buffer;
+			lastAccessTime = System.currentTimeMillis();
 		}
-		return false;
-	}
-	
-	public void unlock( )
-	{
-		locked = false;
+		
+		public boolean within( long location )
+		{
+			return (location - offset) < buffer.length;
+		}
+		
+		public long getOffset( )
+		{
+			return offset;
+		}
+		
+		public byte read( long location )
+		{
+			lastAccessTime = System.currentTimeMillis();
+			return buffer[(int)(location - offset)];
+		}
+		
+		public long getLastAccessTime( )
+		{
+			return lastAccessTime;
+		}
+		
+		public long maxOffset( )
+		{
+			return offset + buffer.length;
+		}
 	}
 }
