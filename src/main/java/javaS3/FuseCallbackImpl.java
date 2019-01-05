@@ -37,7 +37,6 @@ public class FuseCallbackImpl extends FuseStubFS
 	@Override
 	public int getattr(String path, FileStat stat)
 	{
-		log.info( "getattr called: " + path );
 		S3FileStream file = S3FileStream.getFile( bucket, path );
 		
 		if( file.isDir() )
@@ -56,6 +55,7 @@ public class FuseCallbackImpl extends FuseStubFS
 	@Override
 	public int read(String path, Pointer buf, long size, long offset, FuseFileInfo fi) 
 	{
+		log.info( "read: " + size + " - " + offset );
 		S3FileStream file = S3FileStream.getFile( bucket, path );
 		
 		byte[] buffer = file.read( offset, size );
