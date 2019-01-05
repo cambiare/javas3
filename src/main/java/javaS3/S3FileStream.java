@@ -53,7 +53,6 @@ public class S3FileStream
 		S3FileStream file = files.get( bucket+path );
 		if( file == null )
 		{
-			log.info( "returning new S3FileStream object" );
 			file = new S3FileStream();
 			file.path = path;
 			file.bucket = bucket;
@@ -64,7 +63,6 @@ public class S3FileStream
 			{
 				file.isDir = true;
 			} else {
-				log.info( "testing for key existence: " + key );
 				file.s3object = s3.getObject( bucket, key );
 				ObjectMetadata meta = file.s3object.getObjectMetadata();
 				
@@ -98,10 +96,10 @@ public class S3FileStream
 				return new byte[0];
 			}
 						
-			while( !stream.lock( offset ) )
-			{
-				Thread.sleep( 10 );
-			}
+//			while( !stream.lock( offset ) )
+//			{
+//				Thread.sleep( 10 );
+//			}
 			
 			buffer = new byte[(int)length];
 			int b = -1;
