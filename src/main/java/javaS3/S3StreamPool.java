@@ -53,7 +53,7 @@ public class S3StreamPool
 		}
 	}
 	
-	public synchronized S3Stream get( String bucket, String key, Long offset )
+	public S3Stream get( String bucket, String key, Long offset )
 	{
 		String poolKey = bucket + key;
 		
@@ -69,14 +69,8 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
-				synchronized( this )
-				{
-					if( !stream.isLocked() && !stream.isClosed() && offset.longValue() == stream.getOffset() )
-					{
-						stream.lock();
-						return stream;
-					}
-				}
+				S3Stream lockedStream = getLockedStream( stream, offset );
+				if( lockedStream != null ) return lockedStream;
 			}
 			
 			log.info( "creating new stream: " + streams.size() );
@@ -89,6 +83,16 @@ public class S3StreamPool
 			log.error( "failed to create S3Stream within S3StreamPool: ", e );
 		}
 		
+		return null;
+	}
+	
+	private synchronized S3Stream getLockedStream( S3Stream stream, Long offset )
+	{
+		if( !stream.isLocked() && !stream.isClosed() && offset.longValue() == stream.getOffset() )
+		{
+			stream.lock();
+			return stream;
+		}
 		return null;
 	}
 }
