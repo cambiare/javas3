@@ -82,9 +82,12 @@ public class S3FileStream
 		return file;
 	}
 	
-	public byte[] read( long offset, final Long length )
+	public byte[] read( long offset, long length )
 	{
 		byte[] buffer = null;
+		
+		if( offset >= this.length )
+			return new byte[0];
 		
 		S3Stream stream = null;
 		try {
@@ -96,13 +99,13 @@ public class S3FileStream
 				return new byte[0];
 			}
 			
-			buffer = new byte[length.intValue()];
+			buffer = new byte[(int)length];
 			int b = -1;
 			int bytesRead = 0;
-			while( bytesRead < length.intValue() && (b = stream.read()) != -1 )
+			while( bytesRead < length && (b = stream.read()) != -1 )
 				buffer[bytesRead++] = (byte)b;
 						
-			if( bytesRead < length.intValue() )
+			if( bytesRead < length )
 			{
 				log.info( "bytesRead neq to length: " + bytesRead + " - " + length );
 				buffer = Arrays.copyOf( buffer, bytesRead );
