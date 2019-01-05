@@ -73,6 +73,8 @@ public class S3StreamPool
 				}
 			}
 			
+			log.info( "creating new stream: " + streams.size() );
+			
 			S3Stream stream = new S3Stream(bucket, key, offset);
 			streams.add( stream );
 	
