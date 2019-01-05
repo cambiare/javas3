@@ -95,11 +95,6 @@ public class S3FileStream
 				log.error( "failed to open stream for: " + path );
 				return new byte[0];
 			}
-						
-			while( !stream.lock( offset ) )
-			{
-				Thread.sleep( 10 );
-			}
 			
 			buffer = new byte[(int)length];
 			int b = -1;

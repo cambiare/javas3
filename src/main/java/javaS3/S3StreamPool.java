@@ -55,21 +55,27 @@ public class S3StreamPool
 	
 	public S3Stream get( String bucket, String key, Long offset )
 	{
+		String poolKey = bucket + key;
+		
 		try {
-			List<S3Stream> streams = pool.get( bucket+key );
+			List<S3Stream> streams = pool.get( poolKey );
 			if( streams == null )
 			{
 				streams = new ArrayList<>();
-				pool.put( bucket+key, streams );
+				pool.put( poolKey, streams );
 			}
 			
 			//log.info( "searching for stream to file: " + streams.size() + " " + key );
 			
 			for( S3Stream stream : streams )
 			{
-				if( !stream.isClosed() && offset.longValue() == stream.getOffset() )
-				{	
-					return stream;
+				synchronized( poolKey )
+				{
+					if( !stream.isLocked() && !stream.isClosed() && offset.longValue() == stream.getOffset() )
+					{	
+						stream.lock(offset);
+						return stream;
+					}
 				}
 			}
 			
