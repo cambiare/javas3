@@ -53,7 +53,7 @@ public class S3StreamPool
 		}
 	}
 	
-	public S3Stream get( String bucket, String key, Long offset )
+	public synchronized S3Stream get( String bucket, String key, Long offset )
 	{
 		String poolKey = bucket + key;
 		
