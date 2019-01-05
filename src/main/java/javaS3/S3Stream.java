@@ -12,13 +12,12 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 public class S3Stream 
 {
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
-	private final int IO_BUFFER_SIZE = 128 * 1024; // 32KB
+	private final int IO_BUFFER_SIZE = 256 * 1024; // 256KB
 	
 	private boolean closed = false;
 	
@@ -31,7 +30,6 @@ public class S3Stream
 	private long lastReadTime = System.currentTimeMillis();
 	
 	private BufferedInputStream bufferedStream;
-	private S3ObjectInputStream s3InputStream;
 	private AtomicLong offset;
 	//private BlockingQueue<Byte> streamBuffer;
 	
@@ -42,8 +40,7 @@ public class S3Stream
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
 		S3Object o = s3.getObject( request );
 		
-		s3InputStream = o.getObjectContent();
-		bufferedStream = new BufferedInputStream( s3InputStream, IO_BUFFER_SIZE );
+		bufferedStream = new BufferedInputStream( o.getObjectContent(), IO_BUFFER_SIZE );
 		
 		//streamBuffer = new ArrayBlockingQueue<>( 1 * 1024 * 1024 );
 	}
@@ -52,7 +49,7 @@ public class S3Stream
 	{
 		log.info( "advancing stream: " + skip );
 		try {
-			s3InputStream.skip( skip );
+			bufferedStream.skip( skip );
 			return true;
 		} catch (IOException e) {
 			log.error( "failed to skip bytes in stream", e );
