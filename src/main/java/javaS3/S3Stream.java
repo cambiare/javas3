@@ -57,6 +57,8 @@ public class S3Stream
 					streamBuffer.put( (byte)b );
 				
 				closed = true;
+				log.info( "exiting buffer thread" )
+				;
 			} catch( Exception e ) {
 				log.error( "buffer thread has failed ", e );
 				closed = true;
