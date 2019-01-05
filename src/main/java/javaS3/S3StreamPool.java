@@ -78,7 +78,7 @@ public class S3StreamPool
 					}
 					
 					long skip = offset - stream.getOffset();
-					if( offset > stream.getOffset() && skip < (length*2) )
+					if( offset > stream.getOffset() && skip < (length*3) )
 					{
 						stream.lock();
 						if( stream.skip( skip ) )
