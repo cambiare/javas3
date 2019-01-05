@@ -63,7 +63,7 @@ public class S3StreamPool
 				pool.put( bucket+key, streams );
 			}
 			
-			log.debug( "searching for stream to file: " + streams.size() + " " + key );
+			log.info( "searching for stream to file: " + streams.size() + " " + key );
 			
 			for( S3Stream stream : streams )
 			{
