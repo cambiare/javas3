@@ -65,7 +65,7 @@ public class S3StreamPool
 				pool.put( poolKey, streams );
 			}
 			
-			log.info( "searching for stream to file: " + streams.size() + " " + key );
+			log.info( "searching for stream to file: " + streams.size() );
 			
 			// search for current stream for this request
 			for( S3Stream stream : streams )

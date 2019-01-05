@@ -17,7 +17,7 @@ public class S3Stream
 {
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
-	private final int IO_BUFFER_SIZE = 256 * 1024; // 256KB
+	private final int IO_BUFFER_SIZE = 1024 * 1024; // 256KB
 	
 	private boolean closed = false;
 	

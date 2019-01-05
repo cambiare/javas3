@@ -110,6 +110,7 @@ public class S3FileStream
 				log.info( "bytesRead neq to length: " + bytesRead + " - " + length );
 				buffer = Arrays.copyOf( buffer, bytesRead );
 			}
+			stream.unlock();
 			
 		} catch (Exception e) {
 			log.error( "failed to read from S3Stream", e );
