@@ -51,8 +51,10 @@ public class S3Stream
 		try {
 			long skipped = -1;
 			while( (skipped = bufferedStream.skip( skip )) != skip )
+			{
+				log.info( "skip miss: " + skipped + " - " + skip );
 				skip = skip - skipped;
-			
+			}
 			return true;
 		} catch (IOException e) {
 			log.error( "failed to skip bytes in stream", e );
