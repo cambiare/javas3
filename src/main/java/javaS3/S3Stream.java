@@ -47,6 +47,7 @@ public class S3Stream
 	
 	public boolean skip( long skip )
 	{
+		log.info( "advancing stream: " + skip );
 		try {
 			bufferedStream.skip( skip );
 			return true;
