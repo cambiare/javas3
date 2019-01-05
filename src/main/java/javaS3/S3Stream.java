@@ -105,16 +105,18 @@ public class S3Stream
 	
 	public int read( ) throws IOException
 	{
-		if( closed && streamBuffer.size() <= 0 )
+		if( isClosed() )
 			return -1;
-		
+
 		lastReadTime = System.currentTimeMillis();
 		
-		byte b;
 		try {
-			b = streamBuffer.take();
+			int b = (int)streamBuffer.take();
 			offset.incrementAndGet();
-			return (int)b;
+			if( b < 0 )
+				log.info( "WHAT? - returning < 0 byte value?" );
+			
+			return b;
 		} catch (InterruptedException e) {
 			log.error( "interrupted during streamBuffer take", e );
 			closed = true;
