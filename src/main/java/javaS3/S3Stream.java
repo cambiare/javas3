@@ -111,7 +111,7 @@ public class S3Stream
 		lastReadTime = System.currentTimeMillis();
 		
 		try {
-			int b = (int)streamBuffer.take();
+			int b = streamBuffer.take().intValue();
 			offset.incrementAndGet();
 			if( b < 0 )
 				log.info( "WHAT? - returning < 0 byte value?" );
