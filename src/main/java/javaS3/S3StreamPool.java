@@ -10,7 +10,7 @@ import org.apache.log4j.Logger;
 
 public class S3StreamPool 
 {
-	private Map<String, List<S3Stream>>		pool = new HashMap<>();
+	private static Map<String, List<S3Stream>>		pool = new HashMap<>();
 	
 	private static final Logger log = Logger.getLogger( S3StreamPool.class );
 
@@ -104,14 +104,6 @@ public class S3StreamPool
 		} catch( Exception e ) {
 			log.error( "failed to create S3Stream within S3StreamPool: ", e );
 		}
-		
-		return null;
-	}
-	
-	private synchronized S3Stream getLockedStream( S3Stream stream, Long offset )
-	{
-		if( !stream.isClosed() && offset.longValue() == stream.getOffset() && stream.lock() )
-			return stream;
 		
 		return null;
 	}
