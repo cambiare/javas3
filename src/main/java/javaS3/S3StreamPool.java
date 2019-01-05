@@ -69,6 +69,7 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
+				log.info( "stream: " + stream.getOffset() + " --- search offset: " + offset );
 				S3Stream lockedStream = getLockedStream( stream, offset );
 				if( lockedStream != null ) return lockedStream;
 			}
@@ -88,11 +89,9 @@ public class S3StreamPool
 	
 	private synchronized S3Stream getLockedStream( S3Stream stream, Long offset )
 	{
-		if( !stream.isLocked() && !stream.isClosed() && offset.longValue() == stream.getOffset() )
-		{
-			stream.lock();
+		if( !stream.isClosed() && offset.longValue() == stream.getOffset() && stream.lock() )
 			return stream;
-		}
+		
 		return null;
 	}
 }
