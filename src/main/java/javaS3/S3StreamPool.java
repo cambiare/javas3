@@ -67,18 +67,19 @@ public class S3StreamPool
 			
 			log.info( "searching for stream to file: " + streams.size() + " " + key );
 			
-			for( S3Stream stream : streams )
-			{
-				S3Stream lockedStream = getLockedStream( stream, offset );
-				if( lockedStream != null ) return lockedStream;
+			synchronized( this ) {
+				for( S3Stream stream : streams )
+				{
+					S3Stream lockedStream = getLockedStream( stream, offset );
+					if( lockedStream != null ) return lockedStream;
+				}
+				
+				log.info( "creating new stream: " + streams.size() );
+				
+				S3Stream stream = new S3Stream(bucket, key, offset);
+				streams.add( stream );
+				return stream;
 			}
-			
-			log.info( "creating new stream: " + streams.size() );
-			
-			S3Stream stream = new S3Stream(bucket, key, offset);
-			streams.add( stream );
-	
-			return stream;
 		} catch( Exception e ) {
 			log.error( "failed to create S3Stream within S3StreamPool: ", e );
 		}
