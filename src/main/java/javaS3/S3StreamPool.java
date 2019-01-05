@@ -65,7 +65,7 @@ public class S3StreamPool
 				pool.put( poolKey, streams );
 			}
 			
-			//log.info( "searching for stream to file: " + streams.size() + " " + key );
+			log.info( "searching for stream to file: " + streams.size() + " " + key );
 			
 			for( S3Stream stream : streams )
 			{
@@ -79,7 +79,7 @@ public class S3StreamPool
 				}
 			}
 			
-			//log.info( "creating new stream: " + streams.size() );
+			log.info( "creating new stream: " + streams.size() );
 			
 			S3Stream stream = new S3Stream(bucket, key, offset);
 			streams.add( stream );
