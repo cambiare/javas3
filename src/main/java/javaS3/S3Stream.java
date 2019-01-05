@@ -27,6 +27,8 @@ public class S3Stream
 	private final int BUFFER_TIMEOUT = 1000 * 3; // 3 second buffer timeout
 	private final int READ_AHEAD_SIZE = 1024 * 1024; // 1MB read ahead
 	
+	private final Object bufferFillMonitor = new Object();
+	private final Object readMonitor = new Object();
 	
 	private final List<BufferBlock> buffers = new LinkedList<>();
 	
@@ -42,8 +44,6 @@ public class S3Stream
 	private BufferedInputStream bufferedStream;
 	private AtomicLong offset;
 	private AtomicLong maxReadLocation;
-	private Lock bufferFillLock = new ReentrantLock();
-	private Lock readWaitLock = new ReentrantLock();
 	
 	public S3Stream( String bucket, String key, long offset )
 	{
@@ -70,7 +70,7 @@ public class S3Stream
 				{
 					if( firstRun ) firstRun = false;
 					else
-						bufferFillLock.wait();
+						bufferFillMonitor.wait();
 					
 					while( buffers.size() <= 0 || 
 						  (buffers.get( buffers.size() -1 ).maxOffset() - maxReadLocation.get()) < READ_AHEAD_SIZE )
@@ -89,7 +89,7 @@ public class S3Stream
 							}
 						}
 						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
-						readWaitLock.notifyAll();
+						readMonitor.notifyAll();
 					}
 				}
 				
@@ -153,10 +153,10 @@ public class S3Stream
 		int bufferWaitTTL = 0;
 		while( (buffer = findBufferForLocation( location ) ) == null )
 		{
-			bufferFillLock.notify();
+			bufferFillMonitor.notify();
 			
 			try { 
-				readWaitLock.wait( 2 * 1000 ); 
+				readMonitor.wait( 2 * 1000 ); 
 			} catch (InterruptedException e) { log.error( "interrupted in read wait", e ); }
 			
 			if( bufferWaitTTL++ >= 5 )
