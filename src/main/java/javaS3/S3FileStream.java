@@ -91,7 +91,7 @@ public class S3FileStream
 		
 		S3Stream stream = null;
 		try {
-			stream = streamPool.get(bucket, getKey(path), offset);
+			stream = streamPool.get(bucket, getKey(path), offset, length);
 			
 			if( stream == null )
 			{

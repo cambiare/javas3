@@ -45,6 +45,17 @@ public class S3Stream
 		//streamBuffer = new ArrayBlockingQueue<>( 1 * 1024 * 1024 );
 	}
 	
+	public boolean skip( long skip )
+	{
+		try {
+			bufferedStream.skip( skip );
+			return true;
+		} catch (IOException e) {
+			log.error( "failed to skip bytes in stream", e );
+		}
+		return false;
+	}
+	
 	public long getOffset( )
 	{
 		return offset.get();

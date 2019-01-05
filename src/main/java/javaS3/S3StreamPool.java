@@ -53,7 +53,7 @@ public class S3StreamPool
 		}
 	}
 	
-	public synchronized S3Stream get( String bucket, String key, Long offset )
+	public synchronized S3Stream get( String bucket, String key, long offset, long length )
 	{
 		String poolKey = bucket + key;
 		
@@ -69,6 +69,23 @@ public class S3StreamPool
 			
 			for( S3Stream stream : streams )
 			{
+				if( !stream.isLocked() && !stream.isClosed() )
+				{
+					if( offset == stream.getOffset() )
+					{
+						stream.lock();
+						return stream;
+					}
+					
+					long skip = offset - stream.getOffset();
+					if( offset > stream.getOffset() && skip < length )
+					{
+						stream.lock();
+						if( stream.skip( skip ) )
+							return stream;
+					}
+				}
+				
 				log.info( "stream: " + stream.getOffset() + " --- search offset: " + offset );
 				S3Stream lockedStream = getLockedStream( stream, offset );
 				if( lockedStream != null ) return lockedStream;
