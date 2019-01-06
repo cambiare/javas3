@@ -82,8 +82,10 @@ public class S3Stream
 						if( bytesRead < buffer.length )
 						{
 							if( bytesRead < 0 )
+							{
 								closed = true;
-							else if( bytesRead > 0 )
+								break;
+							} else if( bytesRead > 0 )
 								buffer = Arrays.copyOf( buffer, bytesRead );
 							else {
 								Thread.sleep( 10 );
@@ -91,7 +93,10 @@ public class S3Stream
 							}
 						}
 					
-						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
+						synchronized( buffers )
+						{
+							buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
+						}
 						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 
 						clearBuffers();
@@ -123,6 +128,7 @@ public class S3Stream
 	
 	private void clearBuffers( )
 	{
+		
 		List<BufferBlock> deleteList = new ArrayList<>();
 		for( BufferBlock buffer : buffers )
 		{
@@ -133,8 +139,11 @@ public class S3Stream
 			}
 		}
 		
-		for( BufferBlock buffer : deleteList )
-			buffers.remove( buffer );		
+		synchronized( buffers )
+		{
+			for( BufferBlock buffer : deleteList )
+				buffers.remove( buffer );
+		}
 	}
 	
 	public boolean isClosed()
@@ -157,10 +166,13 @@ public class S3Stream
 	
 	private BufferBlock findBufferForLocation( long location )
 	{
-		for( BufferBlock buffer : buffers )
-		{				
-			if( buffer.within( location ) )
-				return buffer;
+		synchronized( buffers )
+		{
+			for( BufferBlock buffer : buffers )
+			{				
+				if( buffer.within( location ) )
+					return buffer;
+			}
 		}
 		return null;
 	}
