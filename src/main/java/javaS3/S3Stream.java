@@ -13,9 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 
-import com.amazonaws.ClientConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -36,12 +34,9 @@ public class S3Stream
 	
 	private boolean closed = false;
 	
-	final static AmazonS3 	s3;
-	static {
-		ClientConfiguration config = new ClientConfiguration();
-		config.setMaxConnections( 1000 );
-		s3 = AmazonS3ClientBuilder.standard().withClientConfiguration(config).withRegion( "us-east-1" ).build();
-	}
+	private Utils utils = new Utils();
+	
+	final static AmazonS3 	s3 = Utils.getS3Client();
 	
 	private final S3Object s3object;
 	private long lastReadTime = System.currentTimeMillis();
@@ -56,10 +51,15 @@ public class S3Stream
 		this.offset = new AtomicLong( offset );
 		this.maxReadLocation = new AtomicLong( offset );
 		
+		utils.startTimer( "GetS3Object" );
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
 		s3object = s3.getObject( request );
+		utils.stopTimer( "GetS3Object" );
 		
+		utils.startTimer( "GetS3ObjectStream" );
 		s3stream = s3object.getObjectContent();
+		utils.stopTimer( "GetS3ObjectStream" );
+
 		bufferedStream = new BufferedInputStream( s3stream, IO_BUFFER_SIZE );
 
 		fillBuffers();
@@ -81,11 +81,14 @@ public class S3Stream
 							bufferFillMonitor.wait();
 						}
 					
+					utils.startTimer( "fillAllBuffers" );
 					while( !closed && buffers.size() <= 0 || 
 						  (buffers.get( buffers.size() -1 ).maxOffset() - maxReadLocation.get()) < READ_AHEAD_SIZE )
 					{
 						buffer = new byte[STREAM_BUFFER_BLOCK_SIZE];
+						
 						bytesRead = bufferedStream.read( buffer );
+						
 						if( bytesRead < STREAM_BUFFER_BLOCK_SIZE )
 						{
 							if( bytesRead < 0 )
@@ -115,6 +118,7 @@ public class S3Stream
 						if( bytesRead < 0 )
 							break;
 					}
+					utils.stopTimer( "fillAllBuffers" );
 				}
 				
 				closed = true;
@@ -138,7 +142,6 @@ public class S3Stream
 	
 	private void clearBuffers( )
 	{
-		
 		List<BufferBlock> deleteList = new ArrayList<>();
 		for( BufferBlock buffer : buffers )
 		{
@@ -184,6 +187,7 @@ public class S3Stream
 					return buffer;
 			}
 		}
+
 		return null;
 	}
 	
@@ -230,7 +234,7 @@ public class S3Stream
 	public void close( )
 	{
 		try {
-			//s3object.close();
+			s3object.close();
 			s3stream.abort();
 			s3stream.release();
 			s3stream.close();

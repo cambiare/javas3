@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 
@@ -63,6 +64,7 @@ public class S3FileStream
 			{
 				file.isDir = true;
 			} else {
+				//GetObjectRequest request = new GetObjectRequest( Utils.getObjectId(bucket, key) );
 				file.s3object = s3.getObject( bucket, key );
 				ObjectMetadata meta = file.s3object.getObjectMetadata();
 				

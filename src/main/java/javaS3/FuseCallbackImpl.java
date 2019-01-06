@@ -5,7 +5,6 @@ import java.nio.file.Paths;
 import org.apache.log4j.Logger;
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
@@ -18,17 +17,12 @@ import ru.serce.jnrfuse.struct.FuseFileInfo;
 
 public class FuseCallbackImpl extends FuseStubFS
 {
-	final AmazonS3 s3;
+	final AmazonS3 s3 = Utils.getS3Client();
 	
-	Logger log = Logger.getLogger( FuseCallbackImpl.class );
+	private static Logger log = Logger.getLogger( FuseCallbackImpl.class );
 	
 	private String bucket;
 
-	public FuseCallbackImpl( )
-	{
-		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
-	}
-	
 	private String getKey( String path )
 	{
 		return path.replaceFirst( "^/", "" );
