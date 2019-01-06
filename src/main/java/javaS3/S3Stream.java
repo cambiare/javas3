@@ -94,6 +94,7 @@ public class S3Stream
 						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
 						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 
+						clearBuffers();
 						
 						synchronized( readMonitor ) {
 							readMonitor.notifyAll();
@@ -120,21 +121,28 @@ public class S3Stream
 		return lastReadTime;
 	}
 	
-	public boolean isClosed()
+	private void clearBuffers( )
 	{
-		List<BufferBlock> deleteList = new ArrayList<>();
-		for( BufferBlock buffer : buffers )
-		{
-			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
+		Executors.newSingleThreadExecutor().execute( () -> {
+			List<BufferBlock> deleteList = new ArrayList<>();
+			for( BufferBlock buffer : buffers )
 			{
-				log.info( "removed buffer" );
-				deleteList.add( buffer );
+				if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
+				{
+					log.info( "removed buffer" );
+					deleteList.add( buffer );
+				}
 			}
-		}
+			
+			for( BufferBlock buffer : deleteList )
+				buffers.remove( buffer );
+			
+		});
 		
-		for( BufferBlock buffer : deleteList )
-			buffers.remove( buffer );
-		
+	}
+	
+	public boolean isClosed()
+	{		
 		return closed && buffers.size() <= 0;
 	}
 	
