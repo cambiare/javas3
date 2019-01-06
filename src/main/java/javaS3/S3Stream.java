@@ -2,6 +2,7 @@ package javaS3;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -121,7 +122,19 @@ public class S3Stream
 	
 	public boolean isClosed()
 	{
-		findBufferForLocation( maxReadLocation.get() );
+		List<BufferBlock> deleteList = new ArrayList<>();
+		for( BufferBlock buffer : buffers )
+		{
+			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
+			{
+				log.info( "removed buffer" );
+				deleteList.add( buffer );
+			}
+		}
+		
+		for( BufferBlock buffer : deleteList )
+			buffers.remove( buffer );
+		
 		return closed && buffers.size() <= 0;
 	}
 	
@@ -141,13 +154,7 @@ public class S3Stream
 	private BufferBlock findBufferForLocation( long location )
 	{
 		for( BufferBlock buffer : buffers )
-		{
-			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
-			{
-				log.info( "removed buffer" );
-				buffers.remove( buffer );
-			}
-				
+		{				
 			if( buffer.within( location ) )
 				return buffer;
 		}
