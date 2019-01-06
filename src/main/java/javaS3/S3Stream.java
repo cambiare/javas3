@@ -3,13 +3,12 @@ package javaS3;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 
@@ -30,7 +29,7 @@ public class S3Stream
 	private final Object bufferFillMonitor = new Object();
 	private final Object readMonitor = new Object();
 	
-	private final List<BufferBlock> buffers = new LinkedList<>();
+	private final List<BufferBlock> buffers = Collections.synchronizedList( new LinkedList<>() );
 	
 	private boolean closed = false;
 	
