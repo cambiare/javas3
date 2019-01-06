@@ -43,6 +43,7 @@ public class S3Stream
 		s3 = AmazonS3ClientBuilder.standard().withClientConfiguration(config).withRegion( "us-east-1" ).build();
 	}
 	
+	private final S3Object s3object;
 	private long lastReadTime = System.currentTimeMillis();
 	
 	private S3ObjectInputStream s3stream;
@@ -56,15 +57,10 @@ public class S3Stream
 		this.maxReadLocation = new AtomicLong( offset );
 		
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
-		S3Object o = s3.getObject( request );
+		s3object = s3.getObject( request );
 		
-		s3stream = o.getObjectContent();
+		s3stream = s3object.getObjectContent();
 		bufferedStream = new BufferedInputStream( s3stream, IO_BUFFER_SIZE );
-		try {
-			o.close();
-		} catch (IOException e) {
-			log.error( "failed to close object", e );
-		}
 
 		fillBuffers();
 	}
@@ -234,7 +230,7 @@ public class S3Stream
 	public void close( )
 	{
 		try {
-			
+			s3object.close();
 			s3stream.abort();
 			s3stream.release();
 			s3stream.close();
