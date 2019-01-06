@@ -141,7 +141,6 @@ public class S3Stream
 	
 	private BufferBlock findBufferForLocation( long location )
 	{
-		log.info( "searching for location: " + location );
 		for( BufferBlock buffer : buffers )
 		{
 			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
@@ -151,7 +150,10 @@ public class S3Stream
 			}
 				
 			if( buffer.within( location ) )
+			{
+				log.info( "found buffer for request" );
 				return buffer;
+			}
 		}
 		return null;
 	}
@@ -220,18 +222,18 @@ public class S3Stream
 		
 		public boolean within( long location )
 		{
-			return (location - offset) < buffer.length;
+			return (location - this.offset) < buffer.length;
 		}
 		
 		public long getOffset( )
 		{
-			return offset;
+			return this.offset;
 		}
 		
 		public byte read( long location )
 		{
 			lastAccessTime = System.currentTimeMillis();
-			return buffer[(int)(location - offset)];
+			return buffer[(int)(location - this.offset)];
 		}
 		
 		public long getLastAccessTime( )
@@ -241,7 +243,7 @@ public class S3Stream
 		
 		public long maxOffset( )
 		{
-			return offset + buffer.length;
+			return this.offset + buffer.length;
 		}
 	}
 }
