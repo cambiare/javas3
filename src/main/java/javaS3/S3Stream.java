@@ -214,6 +214,7 @@ public class S3Stream
 		public BufferBlock( byte[] buffer, long offset )
 		{
 			this.buffer = buffer;
+			this.offset = offset;
 			lastAccessTime = System.currentTimeMillis();
 		}
 		
