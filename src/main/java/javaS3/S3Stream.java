@@ -70,7 +70,9 @@ public class S3Stream
 				{
 					if( firstRun ) firstRun = false;
 					else
-						bufferFillMonitor.wait();
+						synchronized( bufferFillMonitor ) {
+							bufferFillMonitor.wait();
+						}
 					
 					while( buffers.size() <= 0 || 
 						  (buffers.get( buffers.size() -1 ).maxOffset() - maxReadLocation.get()) < READ_AHEAD_SIZE )
@@ -162,7 +164,9 @@ public class S3Stream
 			}
 			
 			try { 
-				readMonitor.wait( 2 * 1000 ); 
+				synchronized( readMonitor ) {
+					readMonitor.wait( 2 * 1000 );
+				}
 			} catch (InterruptedException e) { log.error( "interrupted in read wait", e ); }
 			
 			if( bufferWaitTTL++ >= 5 )
