@@ -91,8 +91,9 @@ public class S3Stream
 							}
 						}
 					
-						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
+						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
+
 						
 						synchronized( readMonitor ) {
 							readMonitor.notifyAll();
