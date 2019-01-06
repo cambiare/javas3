@@ -6,7 +6,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import software.amazon.awssdk.http.SdkHttpClient;
-import software.amazon.awssdk.http.apache.ApacheSdkHttpClientFactory;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -27,9 +27,9 @@ public class Utils
 		if( s3 == null )
 		{
 			SdkHttpClient client = 
-					ApacheSdkHttpClientFactory.builder()
+					ApacheHttpClient.builder()
 						.maxConnections( getProperty( "javas3.s3_max_connections", 1000 ) )
-						.build().createHttpClient();
+						.build();
 			
 			s3 = S3Client.builder()
 				.httpClient( client )
