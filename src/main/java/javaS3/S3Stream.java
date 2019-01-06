@@ -90,9 +90,6 @@ public class S3Stream
 								continue;
 							}
 						}
-					
-						if( bytesRead < 0 )
-							break;
 						
 						synchronized( buffers )
 						{
@@ -106,6 +103,9 @@ public class S3Stream
 						synchronized( readMonitor ) {
 							readMonitor.notifyAll();
 						}
+						
+						if( bytesRead < 0 )
+							break;
 					}
 				}
 				
