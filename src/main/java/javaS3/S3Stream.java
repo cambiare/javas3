@@ -55,6 +55,7 @@ public class S3Stream
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
 		s3object = s3.getObject( request );
 		utils.stopTimer( "GetS3Object" );
+		System.exit( 0 );
 		
 		utils.startTimer( "GetS3ObjectStream" );
 		s3stream = s3object.getObjectContent();
