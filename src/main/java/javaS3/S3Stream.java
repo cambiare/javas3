@@ -230,7 +230,7 @@ public class S3Stream
 	public void close( )
 	{
 		try {
-			s3object.close();
+			//s3object.close();
 			s3stream.abort();
 			s3stream.release();
 			s3stream.close();
