@@ -90,9 +90,8 @@ public class S3Stream
 								continue;
 							}
 						}
-						
-						offset.set( offset.get() + bytesRead );
-						log.info( "filled buffer: " + bytesRead + " - " + offset );
+					
+						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
 						
 						synchronized( readMonitor ) {
