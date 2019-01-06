@@ -89,7 +89,10 @@ public class S3Stream
 							}
 						}
 						buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
-						readMonitor.notifyAll();
+						
+						synchronized( readMonitor ) {
+							readMonitor.notifyAll();
+						}
 					}
 				}
 				
@@ -153,7 +156,10 @@ public class S3Stream
 		int bufferWaitTTL = 0;
 		while( (buffer = findBufferForLocation( location ) ) == null )
 		{
-			bufferFillMonitor.notify();
+			synchronized( bufferFillMonitor )
+			{
+				bufferFillMonitor.notify();
+			}
 			
 			try { 
 				readMonitor.wait( 2 * 1000 ); 
