@@ -79,7 +79,7 @@ public class S3Stream
 					{
 						buffer = new byte[STREAM_BUFFER_BLOCK_SIZE];
 						bytesRead = bufferedStream.read( buffer );
-						if( bytesRead < buffer.length )
+						if( bytesRead < STREAM_BUFFER_BLOCK_SIZE )
 						{
 							if( bytesRead < 0 )
 							{
