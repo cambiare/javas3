@@ -23,7 +23,7 @@ public class S3Stream
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
 	private final int IO_BUFFER_SIZE = 1024*32; // 32KB
-	private final int STREAM_BUFFER_BLOCK_SIZE = 128 * 1024; // 128KB
+	private final int STREAM_BUFFER_BLOCK_SIZE = 256 * 1024; // 128KB
 	private final int BUFFER_TIMEOUT = 1000 * 3; // 3 second buffer timeout
 	private final int READ_AHEAD_SIZE = 1024 * 1024; // 1MB read ahead
 	
@@ -86,6 +86,7 @@ public class S3Stream
 							else if( bytesRead > 0 )
 								buffer = Arrays.copyOf( buffer, bytesRead );
 							else {
+								// zero bytes returned - this shouldn't happen
 								Thread.sleep( 10 );
 								continue;
 							}
