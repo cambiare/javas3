@@ -13,19 +13,21 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 public class S3Stream 
 {
 	private static final Logger log = Logger.getLogger( S3Stream.class );
 
-	private final int IO_BUFFER_SIZE = 1024*32; // 32KB
-	private final int STREAM_BUFFER_BLOCK_SIZE = 256 * 1024; // 128KB
-	private final int BUFFER_TIMEOUT = 1000 * 3; // 3 second buffer timeout
-	private final int READ_AHEAD_SIZE = 1024 * 1024; // 1MB read ahead
+	private final static int IO_BUFFER_SIZE = Utils.getProperty( "javas3.io_buffer_size", 1024*32 ); // 32KB
+	private final static int STREAM_BUFFER_BLOCK_SIZE = Utils.getProperty( "javas3.buffer_block_size", 256 * 1024 ); // 128KB
+	private final static int BUFFER_TIMEOUT = Utils.getProperty( "javas3.buffer_timeout", 1000 * 3 ); // 3 second buffer timeout
+	private final static int READ_AHEAD_SIZE = Utils.getProperty( "javas3.read_ahead_size", 1024 * 1024 ); // 1MB read ahead
 	
 	private final Object bufferFillMonitor = new Object();
 	private final Object readMonitor = new Object();
@@ -36,11 +38,14 @@ public class S3Stream
 	
 	final static AmazonS3 	s3;
 	static {
-		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
+		ClientConfiguration config = new ClientConfiguration();
+		config.setMaxConnections( 1000 );
+		s3 = AmazonS3ClientBuilder.standard().withClientConfiguration(config).withRegion( "us-east-1" ).build();
 	}
 	
 	private long lastReadTime = System.currentTimeMillis();
 	
+	private S3ObjectInputStream s3stream;
 	private BufferedInputStream bufferedStream;
 	private AtomicLong offset;
 	private AtomicLong maxReadLocation;
@@ -53,8 +58,14 @@ public class S3Stream
 		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
 		S3Object o = s3.getObject( request );
 		
-		bufferedStream = new BufferedInputStream( o.getObjectContent(), IO_BUFFER_SIZE );
-		
+		s3stream = o.getObjectContent();
+		bufferedStream = new BufferedInputStream( s3stream, IO_BUFFER_SIZE );
+		try {
+			o.close();
+		} catch (IOException e) {
+			log.error( "failed to close object", e );
+		}
+
 		fillBuffers();
 	}
 	
@@ -97,7 +108,7 @@ public class S3Stream
 							buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
 						}
 						
-						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
+						log.debug( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 
 						clearBuffers();
 						
@@ -111,7 +122,7 @@ public class S3Stream
 				}
 				
 				closed = true;
-				log.info( "exiting buffer thread" );
+				log.debug( "exiting buffer thread" );
 			} catch( Exception e ) {
 				log.error( "buffer thread has failed ", e );
 				closed = true;
@@ -137,7 +148,7 @@ public class S3Stream
 		{
 			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
 			{
-				log.info( "removed buffer" );
+				log.debug( "removed buffer" );
 				deleteList.add( buffer );
 			}
 		}
@@ -200,7 +211,7 @@ public class S3Stream
 				}
 			} catch (InterruptedException e) { log.error( "interrupted in read wait", e ); }
 			
-			log.info( "woke up readMonitor" );
+			log.debug( "woke up readMonitor" );
 			if( bufferWaitTTL++ >= 5 )
 			{
 				log.error( "timed out while waiting for buffers to fill" );
@@ -223,6 +234,10 @@ public class S3Stream
 	public void close( )
 	{
 		try {
+			
+			s3stream.abort();
+			s3stream.release();
+			s3stream.close();
 			bufferedStream.close();
 			closed = true;
 		} catch (IOException e) {

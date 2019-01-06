@@ -10,6 +10,8 @@ import org.apache.log4j.Logger;
 
 public class S3StreamPool 
 {
+	private static final int POOL_MEMBER_TIMEOUT = Utils.getProperty( "javas3.pool_member_timeout", 15000 );
+	
 	private static Map<String, List<S3Stream>>		pool = new HashMap<>();
 	
 	private static final Logger log = Logger.getLogger( S3StreamPool.class );
@@ -29,7 +31,7 @@ public class S3StreamPool
 			{
 				for( S3Stream stream : pool.get(key) )
 				{
-					if( (System.currentTimeMillis() - stream.getLastReadTime()) > 15000 )
+					if( (System.currentTimeMillis() - stream.getLastReadTime()) > POOL_MEMBER_TIMEOUT )
 					{
 						stream.close();
 						deleteList.add( stream );
@@ -38,7 +40,7 @@ public class S3StreamPool
 				
 				for( S3Stream stream : deleteList )
 				{
-					log.info( "removing timed out stream: " + key );
+					log.debug( "removing timed out stream: " + key );
 					pool.get(key).remove( stream );
 				}
 				
@@ -53,7 +55,7 @@ public class S3StreamPool
 		}
 	}
 	
-	public synchronized S3Stream get( String bucket, String key, long offset, long length )
+	public S3Stream get( String bucket, String key, long offset, long length )
 	{
 		String poolKey = bucket + key;
 		
@@ -65,7 +67,7 @@ public class S3StreamPool
 				pool.put( poolKey, streams );
 			}
 			
-			log.info( "searching for stream to file: " + streams.size() );
+			log.debug( "searching for stream to file: " + streams.size() );
 			
 			// search for current stream for this request
 			for( S3Stream stream : streams )
@@ -74,7 +76,7 @@ public class S3StreamPool
 					return stream;
 			}
 			
-			log.info( "creating new stream: " + streams.size() );
+			log.debug( "creating new stream: " + streams.size() );
 			
 			S3Stream stream = new S3Stream(bucket, key, offset);
 			streams.add( stream );
