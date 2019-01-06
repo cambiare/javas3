@@ -13,7 +13,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 public class FuseCallbackImpl extends FuseStubFS
 {
@@ -71,11 +73,14 @@ public class FuseCallbackImpl extends FuseStubFS
 		log.info( "readdir called: " + path );
 		
 		
-		ListObjectsRequest lorequest = ListObjectsRequest.builder().bucket( bucket ).prefix( key ).build();
+		ListObjectsV2Request lorequest = ListObjectsV2Request.builder().bucket( bucket ).prefix( key ).delimiter(delimiter).build();
 				
 				//.withBucketName(bucket).withPrefix( key ).withDelimiter(delimiter);
 
-		ListObjectsResponse result = s3.listObjects( lorequest );
+		//ListObjectsResponse result = s3.listObjects( lorequest );
+		
+		ListObjectsV2Iterable result = s3.listObjectsV2Paginator( lorequest );
+				
 		
 		for( CommonPrefix prefix : result.commonPrefixes() ) 
 		{
@@ -84,11 +89,13 @@ public class FuseCallbackImpl extends FuseStubFS
 			filter.apply( buf, s3path, null, 0 );
 		}
 		
+		
 		for( S3Object s3object: result.contents() )
 		{
 			String s3path = s3object.key().replaceAll("^.*/", "" );
 			filter.apply( buf, s3path, null, 0 );
 		}
+	
         
         return 0;		
 	}
