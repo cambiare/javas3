@@ -82,10 +82,8 @@ public class S3Stream
 						if( bytesRead < STREAM_BUFFER_BLOCK_SIZE )
 						{
 							if( bytesRead < 0 )
-							{
 								closed = true;
-								break;
-							} else if( bytesRead > 0 )
+							else if( bytesRead > 0 )
 								buffer = Arrays.copyOf( buffer, bytesRead );
 							else {
 								Thread.sleep( 10 );
