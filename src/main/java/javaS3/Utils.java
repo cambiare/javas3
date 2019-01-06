@@ -31,6 +31,7 @@ public class Utils
 			ClientConfiguration config = new ClientConfiguration();
 			config.setMaxConnections( getProperty( "javas3.s3_max_connections", 1000 ) );
 			config.setProxyDomain( Utils.getProperty( "javas3.proxy_domain", null ) );
+			config.setProxyDomain( Utils.getProperty( "javas3.proxy_port", null ) );
 			s3 = AmazonS3ClientBuilder.standard()
 					.withClientConfiguration( config )
 					.withRegion( getProperty( "javas3.s3_region", "us-east-1" ) )
@@ -39,14 +40,24 @@ public class Utils
 		return s3;
 	}
 	
-	public static int getProperty( String property, int defaultValue )
+	public static <T> T getProperty( String property, T defaultValue )
 	{
-		int returnValue = -1;
+		T returnValue = null;
 		
 		String value = System.getProperty( property );
 		if( value != null )
-			returnValue = Integer.parseInt( value );
-		else
+		{
+			if( defaultValue instanceof Integer )
+				returnValue = (T)new Integer(Integer.parseInt( value ));
+			else if( defaultValue instanceof Long )
+				returnValue = (T)new Long(Long.parseLong( value ));
+			else if( defaultValue instanceof Float )
+				returnValue = (T)new Float(Float.parseFloat( value ));
+			else if( defaultValue instanceof Double )
+				returnValue = (T)new Double(Double.parseDouble( value ));
+			else
+				returnValue = (T)value;
+		} else
 			returnValue = defaultValue;
 		
 		log.warn( "int property available: " + property + " set to: " + returnValue );
@@ -59,21 +70,6 @@ public class Utils
 		
 		S3ObjectId objid = new S3ObjectIdBuilder().withBucket( bucket ).withKey( key ).build();
 		return objectIdMap.get( bucket + key );
-	}
-	
-	public static String getProperty( String property, String defaultValue )
-	{
-		String returnValue = null;
-		
-		String value = System.getProperty( property );
-		if( value != null )
-			returnValue = value;
-		else
-			returnValue = defaultValue;
-		
-		log.warn( "String property available: " + property + " set to: " + returnValue );
-		
-		return returnValue;
 	}
 	
 	public void startTimer( String name )
