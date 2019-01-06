@@ -91,10 +91,14 @@ public class S3Stream
 							}
 						}
 					
+						if( bytesRead < 0 )
+							break;
+						
 						synchronized( buffers )
 						{
 							buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
 						}
+						
 						log.info( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 
 						clearBuffers();
