@@ -141,11 +141,15 @@ public class S3Stream
 	
 	private BufferBlock findBufferForLocation( long location )
 	{
+		log.info( "searching for location: " + location );
 		for( BufferBlock buffer : buffers )
 		{
 			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
+			{
+				log.info( "removed buffer" );
 				buffers.remove( buffer );
-			
+			}
+				
 			if( buffer.within( location ) )
 				return buffer;
 		}
@@ -172,6 +176,7 @@ public class S3Stream
 				}
 			} catch (InterruptedException e) { log.error( "interrupted in read wait", e ); }
 			
+			log.info( "woke up readMonitor" );
 			if( bufferWaitTTL++ >= 5 )
 			{
 				log.error( "timed out while waiting for buffers to fill" );
