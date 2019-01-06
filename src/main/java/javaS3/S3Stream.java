@@ -150,10 +150,7 @@ public class S3Stream
 			}
 				
 			if( buffer.within( location ) )
-			{
-				log.info( "found buffer for request" );
 				return buffer;
-			}
 		}
 		return null;
 	}
