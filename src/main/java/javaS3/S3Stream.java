@@ -13,10 +13,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 public class S3Stream 
 {
@@ -36,12 +36,11 @@ public class S3Stream
 	
 	private Utils utils = new Utils();
 	
-	final static AmazonS3 	s3 = Utils.getS3Client();
+	final static S3Client 	s3 = Utils.getS3Client();
 	
-	private final S3Object s3object;
 	private long lastReadTime = System.currentTimeMillis();
 	
-	private S3ObjectInputStream s3stream;
+	ResponseInputStream<GetObjectResponse> s3stream;
 	private BufferedInputStream bufferedStream;
 	private AtomicLong offset;
 	private AtomicLong maxReadLocation;
@@ -52,13 +51,10 @@ public class S3Stream
 		this.maxReadLocation = new AtomicLong( offset );
 		
 		utils.startTimer( "GetS3Object" );
-		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
-		s3object = s3.getObject( request );
+		GetObjectRequest request = GetObjectRequest.builder().bucket(bucket).key(key).range( "" + offset + "-").build();
+				//new GetObjectRequest(bucket, key).withRange( offset );
+		s3stream = s3.getObject( request );
 		utils.stopTimer( "GetS3Object" );
-		
-		utils.startTimer( "GetS3ObjectStream" );
-		s3stream = s3object.getObjectContent();
-		utils.stopTimer( "GetS3ObjectStream" );
 
 		bufferedStream = new BufferedInputStream( s3stream, IO_BUFFER_SIZE );
 
@@ -234,7 +230,6 @@ public class S3Stream
 	public void close( )
 	{
 		try {
-			s3object.close();
 			s3stream.abort();
 			s3stream.release();
 			s3stream.close();

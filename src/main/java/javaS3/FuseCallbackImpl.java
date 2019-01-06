@@ -4,20 +4,20 @@ import java.nio.file.Paths;
 
 import org.apache.log4j.Logger;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-
 import jnr.ffi.Pointer;
 import ru.serce.jnrfuse.FuseFillDir;
 import ru.serce.jnrfuse.FuseStubFS;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class FuseCallbackImpl extends FuseStubFS
 {
-	final AmazonS3 s3 = Utils.getS3Client();
+	final S3Client s3 = Utils.getS3Client();
 	
 	private static Logger log = Logger.getLogger( FuseCallbackImpl.class );
 	
@@ -70,20 +70,23 @@ public class FuseCallbackImpl extends FuseStubFS
 		String key = getKey(path);
 		log.info( "readdir called: " + path );
 		
-		ListObjectsRequest lorequest = new ListObjectsRequest().withBucketName(bucket).withPrefix( key ).withDelimiter(delimiter);
-
-		ObjectListing result = s3.listObjects( lorequest );
 		
-		for( String subkey : result.getCommonPrefixes() ) 
+		ListObjectsRequest lorequest = ListObjectsRequest.builder().bucket( bucket ).prefix( key ).build();
+				
+				//.withBucketName(bucket).withPrefix( key ).withDelimiter(delimiter);
+
+		ListObjectsResponse result = s3.listObjects( lorequest );
+		
+		for( CommonPrefix prefix : result.commonPrefixes() ) 
 		{
-			subkey = subkey.replaceAll("/$", "");
+			String subkey = prefix.prefix().replaceAll("/$", "");
 			String s3path = subkey.replaceAll("^.*" + delimiter, "");
 			filter.apply( buf, s3path, null, 0 );
 		}
 		
-		for( S3ObjectSummary summary: result.getObjectSummaries() )
+		for( S3Object s3object: result.contents() )
 		{
-			String s3path = summary.getKey().replaceAll("^.*/", "" );
+			String s3path = s3object.key().replaceAll("^.*/", "" );
 			filter.apply( buf, s3path, null, 0 );
 		}
         

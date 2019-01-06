@@ -2,26 +2,21 @@ package javaS3;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3FileStream 
 {
 	
-	final static Map<String, List<S3FileCache>> fileSystemCache = new HashMap<>();
+	//final static Map<String, List<S3FileCache>> fileSystemCache = new HashMap<>();
 	
-	final static AmazonS3 	s3;
-	static {
-		s3 = AmazonS3ClientBuilder.standard().withRegion( "us-east-1" ).build();
-	}
+	final static S3Client 	s3 = Utils.getS3Client();
 	
 	private static final Logger log = Logger.getLogger( S3FileStream.class );
 	
@@ -64,19 +59,24 @@ public class S3FileStream
 			{
 				file.isDir = true;
 			} else {
-				//GetObjectRequest request = new GetObjectRequest( Utils.getObjectId(bucket, key) );
-				file.s3object = s3.getObject( bucket, key );
-				ObjectMetadata meta = file.s3object.getObjectMetadata();
+				//GetObjectRequest request = new GetObjectRequest( Utils.getObjectId(bucket, key) )
+				ListObjectsV2Response response = s3.listObjectsV2(
+						ListObjectsV2Request.builder().bucket(bucket).prefix(key).build() );
 				
-				if( meta != null )
-				{
-			        file.length = meta.getContentLength();
-			        file.isDir = false;
-			        file.exists = true;
-				} else {
-					file.exists = false;
-					file.isDir = true;
-				}
+				if( response.contents().isEmpty() )
+					return null;
+				
+				// there should only be one object in here - that was a full key path above
+				file.s3object = response.contents().get(0);
+				
+				
+				file.length = file.s3object.size();
+				file.isDir = false;
+				file.exists = true;
+				
+//					file.exists = false;
+//					file.isDir = true;
+				
 			}
 			files.put( bucket+path, file );
 		}
