@@ -140,7 +140,7 @@ public class S3Stream
 	{
 		for( BufferBlock buffer : buffers )
 		{
-			if( buffer.getLastAccessTime() > BUFFER_TIMEOUT )
+			if( buffer.getLastAccessTime() < (System.currentTimeMillis() - BUFFER_TIMEOUT) )
 				buffers.remove( buffer );
 			
 			if( buffer.within( location ) )
