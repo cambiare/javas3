@@ -6,6 +6,8 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3ObjectId;
@@ -22,20 +24,33 @@ public class Utils
 	private static AmazonS3 s3 = getS3Client( );
 	
 	private Map<String, Long> timers = new HashMap<>();
-	private static Map<String, S3ObjectId> objectIdMap = new HashMap<>();
 	
 	public static AmazonS3 getS3Client( )
 	{
 		if( s3 == null )
-		{
+		{		
+			EndpointConfiguration endpointConfig = null;
+			
+			String endpoint = getProperty( "javas3.s3_endpoint", null );
+			
 			ClientConfiguration config = new ClientConfiguration();
 			config.setMaxConnections( getProperty( "javas3.s3_max_connections", 1000 ) );
 			config.setProxyDomain( Utils.getProperty( "javas3.proxy_domain", null ) );
 			config.setProxyDomain( Utils.getProperty( "javas3.proxy_port", null ) );
-			s3 = AmazonS3ClientBuilder.standard()
-					.withClientConfiguration( config )
-					.withRegion( getProperty( "javas3.s3_region", "us-east-1" ) )
-					.build();
+			
+			if( endpoint != null )
+			{
+				endpointConfig = new  EndpointConfiguration( endpoint, getProperty( "javas3.s3_region", "us-east-1" ) );
+				s3 = AmazonS3ClientBuilder.standard()
+						.withClientConfiguration( config )
+						.withEndpointConfiguration( endpointConfig )
+						.build();
+			} else {
+				s3 = AmazonS3ClientBuilder.standard()
+						.withClientConfiguration( config )
+						.withRegion( getProperty( "javas3.s3_region", "us-east-1" ) )
+						.build();
+			}
 		}
 		return s3;
 	}
@@ -63,13 +78,6 @@ public class Utils
 		log.warn( "int property available: " + property + " set to: " + returnValue );
 		
 		return returnValue;
-	}
-	
-	public static S3ObjectId getObjectId( String bucket, String key )
-	{
-		
-		S3ObjectId objid = new S3ObjectIdBuilder().withBucket( bucket ).withKey( key ).build();
-		return objectIdMap.get( bucket + key );
 	}
 	
 	public void startTimer( String name )

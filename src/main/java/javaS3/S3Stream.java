@@ -26,6 +26,7 @@ public class S3Stream
 	private final static int STREAM_BUFFER_BLOCK_SIZE = Utils.getProperty( "javas3.buffer_block_size", 256 * 1024 ); // 128KB
 	private final static int BUFFER_TIMEOUT = Utils.getProperty( "javas3.buffer_timeout", 1000 * 3 ); // 3 second buffer timeout
 	private final static int READ_AHEAD_SIZE = Utils.getProperty( "javas3.read_ahead_size", 1024 * 1024 ); // 1MB read ahead
+	private final static int MAX_READ_FROM_STREAM = Utils.getProperty( "javas3.max_read_from_stream", 2 * 1024 * 1024 ); // 2MB read ahead
 	
 	private final Object bufferFillMonitor = new Object();
 	private final Object readMonitor = new Object();
@@ -52,7 +53,7 @@ public class S3Stream
 		this.maxReadLocation = new AtomicLong( offset );
 		
 		utils.startTimer( "GetS3Object" );
-		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset );
+		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset, offset + MAX_READ_FROM_STREAM );
 		s3object = s3.getObject( request );
 		utils.stopTimer( "GetS3Object" );
 		
@@ -72,6 +73,7 @@ public class S3Stream
 				boolean firstRun = true;
 				byte[] buffer;
 				
+				long totalBytesRead = 0;
 				int bytesRead = -1;
 				while( !closed )
 				{
@@ -88,6 +90,7 @@ public class S3Stream
 						buffer = new byte[STREAM_BUFFER_BLOCK_SIZE];
 						
 						bytesRead = bufferedStream.read( buffer );
+						totalBytesRead += bytesRead;
 						
 						if( bytesRead < STREAM_BUFFER_BLOCK_SIZE )
 						{
@@ -107,7 +110,7 @@ public class S3Stream
 							buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
 						}
 						
-						log.debug( "filled buffer: " + bytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
+						log.info( "filled buffer: " + bytesRead + " - " + totalBytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 
 						clearBuffers();
 						
@@ -116,7 +119,9 @@ public class S3Stream
 						}
 						
 						if( bytesRead < 0 )
+						{
 							break;
+						}
 					}
 					utils.stopTimer( "fillAllBuffers" );
 				}
@@ -231,13 +236,114 @@ public class S3Stream
 		return b;
 	}
 	
+	private byte[] fillBufferFromBlockBuffers( long offset, long length ) 
+	{
+		List<BufferBlock> bufferBlocksForFill = new ArrayList<>();
+		
+		log.debug( "entered fillBufferFromBlockBuffers" );
+		
+//		if( closed )
+//			length = Math.min( this.offset.get() - offset, length );
+		
+		if( length <= 0 )
+			return new byte[0];
+		
+		log.debug( "searching for buffers to fill this request" );
+		long searchOffset = offset;
+		for( int i=0; i < buffers.size(); i++ )
+		{
+			BufferBlock buffer = buffers.get( i );
+			if( buffer.within( searchOffset ) )
+			{
+				bufferBlocksForFill.add( buffer );
+				searchOffset = buffer.maxOffset() +1;
+			}
+			
+			if( searchOffset > (offset+length) )
+				break;
+		}
+		
+		log.debug( "found buffers: " + bufferBlocksForFill.size() );
+		if( bufferBlocksForFill.size() <= 0 )
+			return null;
+		
+		// do not have enough buffered to fill the request
+		if( searchOffset < (offset+length) )
+			return null;
+		
+		log.debug( "starting buffer fill loop" );
+		
+		int intLength = Math.toIntExact( length );
+		byte[] returnData = new byte[intLength];
+		int dataToRead = intLength;
+		int destPos = 0;
+		int srcPos = 0;
+		for( BufferBlock buffer : bufferBlocksForFill )
+		{
+			long offsetDelta = offset - buffer.getOffset();
+			
+			srcPos = 0;
+			if( offsetDelta >= 0 )
+				srcPos = Math.toIntExact( offsetDelta );
+			
+			int srcLength = Math.min( buffer.getBuffer().length, dataToRead );
+			
+			System.arraycopy( buffer.getBuffer(), srcPos, returnData, destPos, srcLength );
+			
+			dataToRead -= srcLength;
+		}
+		
+		lastReadTime = System.currentTimeMillis();
+
+		return returnData;
+	}
+	
+	public byte[] read( long offset, long length ) throws TimeoutException
+	{
+		if( isClosed() )
+			return null;
+		
+		// update the max read location for buffers to fill to that point if this is farther
+		// than the rest
+		long max = maxReadLocation.updateAndGet( x -> Math.max( offset+length, maxReadLocation.get() ) );
+		if( max == offset+length )
+			synchronized( bufferFillMonitor ) { bufferFillMonitor.notify(); }
+		
+		log.debug( "filling buffer" );
+		
+		int bufferWaitTTL = 0;
+		byte[] buffer = null;
+		while( (buffer = fillBufferFromBlockBuffers( offset, length ) ) == null )
+		{
+			log.debug( "not filled... waiting" );
+			// notify for a buffer fill
+			synchronized( bufferFillMonitor ) { bufferFillMonitor.notify(); }
+			
+			try { 
+				synchronized( readMonitor ) {
+					readMonitor.wait( 2 * 1000 );
+				}
+			} catch (InterruptedException e) { log.error( "interrupted in read wait", e ); }
+			
+			log.debug( "woke up readMonitor" );
+			if( bufferWaitTTL++ >= 5 )
+			{
+				log.error( "timed out while waiting for buffers to fill" );
+				throw new TimeoutException();
+			}
+		}
+		
+		return buffer;
+	}
+	
 	public void close( )
 	{
 		try {
-			s3object.close();
-			s3stream.abort();
-			s3stream.release();
+			log.info( "closing everything" );
+			//s3stream.abort();
+			//s3stream.release();
 			s3stream.close();
+			s3object.close();
 			bufferedStream.close();
 			closed = true;
 		} catch (IOException e) {
@@ -267,6 +373,13 @@ public class S3Stream
 		{
 			return this.offset;
 		}
+		
+		public byte[] getBuffer( )
+		{
+			return buffer;
+		}
+		
+		
 		
 		public byte read( long location )
 		{

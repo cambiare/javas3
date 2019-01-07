@@ -10,7 +10,7 @@ import org.apache.log4j.Logger;
 
 public class S3StreamPool 
 {
-	private static final int POOL_MEMBER_TIMEOUT = Utils.getProperty( "javas3.pool_member_timeout", 15000 );
+	private static final int POOL_MEMBER_TIMEOUT = Utils.getProperty( "javas3.pool_member_timeout", 10000 );
 	
 	private static Map<String, List<S3Stream>>		pool = new HashMap<>();
 	
@@ -27,30 +27,35 @@ public class S3StreamPool
 		
 		while( true )
 		{
-			for( String key : pool.keySet() )
-			{
-				for( S3Stream stream : pool.get(key) )
-				{
-					if( (System.currentTimeMillis() - stream.getLastReadTime()) > POOL_MEMBER_TIMEOUT )
-					{
-						stream.close();
-						deleteList.add( stream );
-					}
-				}
-				
-				for( S3Stream stream : deleteList )
-				{
-					log.debug( "removing timed out stream: " + key );
-					pool.get(key).remove( stream );
-				}
-				
-				deleteList.clear();
-			}
-			
 			try {
-				Thread.sleep( 1000 );
-			} catch (InterruptedException e) {
-				log.error( "interrupted in timeoutUnusedStreams", e );
+				for( String key : pool.keySet() )
+				{
+					for( S3Stream stream : pool.get(key) )
+					{
+						if( (System.currentTimeMillis() - stream.getLastReadTime()) > POOL_MEMBER_TIMEOUT )
+						{
+							stream.close();
+							deleteList.add( stream );
+						}
+					}
+					
+					for( S3Stream stream : deleteList )
+					{
+						pool.get(key).remove( stream );
+						if( pool.get(key).isEmpty() )
+							pool.remove( key );
+					}
+					
+					deleteList.clear();
+				}
+				
+				try {
+					Thread.sleep( 1000 );
+				} catch (InterruptedException e) {
+					log.error( "interrupted in timeoutUnusedStreams", e );
+				}
+			} catch( Exception e ) { 
+				log.error( "failure in pool timeout thread", e );
 			}
 		}
 	}
