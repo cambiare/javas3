@@ -1,7 +1,6 @@
 package javaS3;
 
 import java.io.BufferedInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,7 +15,6 @@ import org.apache.log4j.Logger;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 public class S3Stream 
 {
@@ -26,44 +24,94 @@ public class S3Stream
 	private final static int STREAM_BUFFER_BLOCK_SIZE = Utils.getProperty( "javas3.buffer_block_size", 256 * 1024 ); // 128KB
 	private final static int BUFFER_TIMEOUT = Utils.getProperty( "javas3.buffer_timeout", 1000 * 3 ); // 3 second buffer timeout
 	private final static int READ_AHEAD_SIZE = Utils.getProperty( "javas3.read_ahead_size", 1024 * 1024 ); // 1MB read ahead
-	private final static int MAX_READ_FROM_STREAM = Utils.getProperty( "javas3.max_read_from_stream", 2 * 1024 * 1024 ); // 2MB read ahead
+	//private final static int MAX_READ_FROM_STREAM = Utils.getProperty( "javas3.max_read_from_stream", 2 * 1024 * 1024 ); // 2MB read ahead
 	
 	private final Object bufferFillMonitor = new Object();
 	private final Object readMonitor = new Object();
 	
-	private final List<BufferBlock> buffers = Collections.synchronizedList( new LinkedList<>() );
+	private final static List<BufferBlock> buffers = Collections.synchronizedList( new LinkedList<>() );
 	
 	private boolean closed = false;
 	
-	private Utils utils = new Utils();
+	//private Utils utils = new Utils();
 	
 	final static AmazonS3 	s3 = Utils.getS3Client();
 	
-	private final S3Object s3object;
 	private long lastReadTime = System.currentTimeMillis();
 	
-	private S3ObjectInputStream s3stream;
-	private BufferedInputStream bufferedStream;
 	private AtomicLong offset;
 	private AtomicLong maxReadLocation;
+	private String bucket;
+	private String key;
 	
 	public S3Stream( String bucket, String key, long offset )
 	{
+		this.bucket = bucket;
+		this.key = key;
+		
 		this.offset = new AtomicLong( offset );
 		this.maxReadLocation = new AtomicLong( offset );
-		
-		utils.startTimer( "GetS3Object" );
-		GetObjectRequest request = new GetObjectRequest(bucket, key).withRange( offset, offset + MAX_READ_FROM_STREAM );
-		s3object = s3.getObject( request );
-		utils.stopTimer( "GetS3Object" );
-		
-		utils.startTimer( "GetS3ObjectStream" );
-		s3stream = s3object.getObjectContent();
-		utils.stopTimer( "GetS3ObjectStream" );
 
-		bufferedStream = new BufferedInputStream( s3stream, IO_BUFFER_SIZE );
-
+		//fillFullFileBuffer( );
 		fillBuffers();
+	}
+	
+	private int fillBuffer( byte[] buffer, long offset )
+	{
+		//utils.startTimer( "FillBuffer" );
+		int bytesRead = -1;
+		
+		GetObjectRequest request = 
+				new GetObjectRequest(bucket, key).withRange( offset, offset + STREAM_BUFFER_BLOCK_SIZE );
+		
+		try( BufferedInputStream bufferedStream = 
+				new BufferedInputStream( 
+					s3.getObject( request ).getObjectContent(), IO_BUFFER_SIZE ) ) 
+		{
+			bytesRead = bufferedStream.read( buffer );
+		
+			bufferedStream.close();
+		} catch (Exception e) {
+			log.error( "failed to read buffer: " + offset, e );
+		}
+		//utils.stopTimer( "FillBuffer" );
+		
+		return bytesRead;
+	}
+	
+	private void fillFullFileBuffer( )
+	{
+		int bytesRead = -1;
+		
+		GetObjectRequest request = 
+				new GetObjectRequest(bucket, key);
+		
+		S3Object s3object = s3.getObject( request );
+		
+		// if 100MB or greater then use the partial buffer method
+		if( s3object.getObjectMetadata().getContentLength() > 100 * 1024 * 1024 )
+		{
+			fillBuffers();
+			return;
+		}
+		
+		try( BufferedInputStream bufferedStream = 
+				new BufferedInputStream( 
+					s3.getObject( request ).getObjectContent(), IO_BUFFER_SIZE ) ) 
+		{
+			// only supporting sub 2GB here
+			byte[] buffer = new byte[Math.toIntExact( s3object.getObjectMetadata().getContentLength() )];
+			bytesRead = bufferedStream.read( buffer );
+			
+			log.info( "filled full buffer: " + bytesRead );
+			
+			BufferBlock bufferBlock = new BufferBlock( buffer, 0l );
+			buffers.add( bufferBlock );
+			
+			bufferedStream.close();
+		} catch (Exception e) {
+			log.error( "failed to read buffer: " + offset, e );
+		}
 	}
 	
 	private void fillBuffers( )
@@ -73,7 +121,7 @@ public class S3Stream
 				boolean firstRun = true;
 				byte[] buffer;
 				
-				long totalBytesRead = 0;
+				//long totalBytesRead = 0;
 				int bytesRead = -1;
 				while( !closed )
 				{
@@ -83,14 +131,14 @@ public class S3Stream
 							bufferFillMonitor.wait();
 						}
 					
-					utils.startTimer( "fillAllBuffers" );
+					//utils.startTimer( "fillAllBuffers" );
 					while( !closed && buffers.size() <= 0 || 
 						  (buffers.get( buffers.size() -1 ).maxOffset() - maxReadLocation.get()) < READ_AHEAD_SIZE )
 					{
 						buffer = new byte[STREAM_BUFFER_BLOCK_SIZE];
 						
-						bytesRead = bufferedStream.read( buffer );
-						totalBytesRead += bytesRead;
+						bytesRead = fillBuffer( buffer, offset.get() );
+						//totalBytesRead += bytesRead;
 						
 						if( bytesRead < STREAM_BUFFER_BLOCK_SIZE )
 						{
@@ -110,7 +158,7 @@ public class S3Stream
 							buffers.add( new BufferBlock( buffer, offset.getAndAdd( bytesRead ) ) );
 						}
 						
-						log.info( "filled buffer: " + bytesRead + " - " + totalBytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
+						//log.debug( "filled buffer: " + bytesRead + " - " + totalBytesRead + " - " + offset + " - " + buffers.get( buffers.size() -1 ).maxOffset() + " - " + maxReadLocation.get() );
 
 						clearBuffers();
 						
@@ -123,7 +171,7 @@ public class S3Stream
 							break;
 						}
 					}
-					utils.stopTimer( "fillAllBuffers" );
+					//utils.stopTimer( "fillAllBuffers" );
 				}
 				
 				closed = true;
@@ -133,6 +181,16 @@ public class S3Stream
 				closed = true;
 			}
 		});
+	}
+	
+	public long getMaxBufferOffset( )
+	{
+		return (buffers.size() > 0 ) ? buffers.get( buffers.size() - 1 ).maxOffset() : (offset.get() + READ_AHEAD_SIZE);
+	}
+	
+	public long getMinBufferOffset( )
+	{
+		return (buffers.size() > 0 ) ? buffers.get( 0 ).getOffset() : offset.get();
 	}
 	
 	public long getOffset( )
@@ -169,17 +227,9 @@ public class S3Stream
 		return closed && buffers.size() <= 0;
 	}
 	
-	public boolean within( long offset )
+	public boolean within( long requestOffset )
 	{
-		// maybe buffers haven't been filled yet
-		if( buffers.size() <= 0 )
-			return offset > this.offset.get() && offset < this.offset.get() + READ_AHEAD_SIZE;
-		
-		
-		if( offset > buffers.get(0).getOffset() && offset < maxReadLocation.get() + READ_AHEAD_SIZE )
-			return true;
-		
-		return false;
+		return requestOffset >= getMinBufferOffset() && requestOffset <= getMaxBufferOffset() + READ_AHEAD_SIZE;
 	}
 	
 	private BufferBlock findBufferForLocation( long location )
@@ -263,7 +313,7 @@ public class S3Stream
 				break;
 		}
 		
-		log.debug( "found buffers: " + bufferBlocksForFill.size() );
+		//log.debug( "found buffers: " + bufferBlocksForFill.size() );
 		if( bufferBlocksForFill.size() <= 0 )
 			return null;
 		
@@ -287,6 +337,7 @@ public class S3Stream
 				srcPos = Math.toIntExact( offsetDelta );
 			
 			int srcLength = Math.min( buffer.getBuffer().length, dataToRead );
+			srcLength = Math.min( returnData.length, srcLength );
 			
 			System.arraycopy( buffer.getBuffer(), srcPos, returnData, destPos, srcLength );
 			
@@ -305,10 +356,13 @@ public class S3Stream
 		
 		// update the max read location for buffers to fill to that point if this is farther
 		// than the rest
+		//String msg = "updating maxReadLocation from: " + maxReadLocation + " to: ";
 		long max = maxReadLocation.updateAndGet( x -> Math.max( offset+length, maxReadLocation.get() ) );
 		if( max == offset+length )
+		{
+			//log.info( msg + maxReadLocation );
 			synchronized( bufferFillMonitor ) { bufferFillMonitor.notify(); }
-		
+		}
 		log.debug( "filling buffer" );
 		
 		int bufferWaitTTL = 0;
@@ -338,17 +392,7 @@ public class S3Stream
 	
 	public void close( )
 	{
-		try {
-			log.info( "closing everything" );
-			//s3stream.abort();
-			//s3stream.release();
-			s3stream.close();
-			s3object.close();
-			bufferedStream.close();
 			closed = true;
-		} catch (IOException e) {
-			log.error( "failed to close S3Stream", e );
-		}
 	}
 	
 	class BufferBlock
@@ -378,8 +422,6 @@ public class S3Stream
 		{
 			return buffer;
 		}
-		
-		
 		
 		public byte read( long location )
 		{

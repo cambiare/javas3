@@ -60,7 +60,7 @@ public class S3StreamPool
 		}
 	}
 	
-	public S3Stream get( String bucket, String key, long offset, long length )
+	public synchronized S3Stream get( String bucket, String key, long offset, long length )
 	{
 		String poolKey = bucket + key;
 		
@@ -81,7 +81,10 @@ public class S3StreamPool
 					return stream;
 			}
 			
-			log.debug( "creating new stream: " + streams.size() );
+			log.info( "creating new stream: " + streams.size() + " - " + key.replaceAll("^.*/", "") + " - " + offset + " - " + length );
+//			for( S3Stream stream : streams )
+//				log.info( "   stream: " + stream.getOffset() + " - " + stream.getMinBufferOffset() + " - " + stream.getMaxBufferOffset() );
+			
 			
 			S3Stream stream = new S3Stream(bucket, key, offset);
 			streams.add( stream );

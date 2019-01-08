@@ -49,7 +49,9 @@ public class FuseCallbackImpl extends FuseStubFS
 	@Override
 	public int read(String path, Pointer buf, long size, long offset, FuseFileInfo fi) 
 	{
-		//log.info( "read: " + size + " - " + offset );
+		FuseRequestLog requestLog = new FuseRequestLog( path, offset, size, System.currentTimeMillis() );
+		FuseRequestLog.requests.add( requestLog );
+		
 		S3FileStream file = S3FileStream.getFile( bucket, path );
 		
 		byte[] buffer = file.read( offset, size );
@@ -57,6 +59,8 @@ public class FuseCallbackImpl extends FuseStubFS
 			return -1;
 		
 		buf.put(0, buffer, 0, (int)buffer.length);
+		
+		requestLog.endTime = System.currentTimeMillis();
 		
 		return buffer.length;
 	}
@@ -121,3 +125,21 @@ public class FuseCallbackImpl extends FuseStubFS
 		System.out.println( "USAGE: java -jar {JAR} bucket mount_point block fuse_opts" );
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
