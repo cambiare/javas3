@@ -89,7 +89,7 @@ public class S3Stream
 		S3Object s3object = s3.getObject( request );
 		
 		// if 100MB or greater then use the partial buffer method
-		if( s3object.getObjectMetadata().getContentLength() > 100 * 1024 * 1024 )
+		if( s3object.getObjectMetadata().getContentLength() > 300 * 1024 * 1024 )
 		{
 			fillBuffers();
 			return;
@@ -103,7 +103,7 @@ public class S3Stream
 			byte[] buffer = new byte[Math.toIntExact( s3object.getObjectMetadata().getContentLength() )];
 			bytesRead = bufferedStream.read( buffer );
 			
-			log.info( "filled full buffer: " + bytesRead );
+			log.info( "filled full buffer: " + bytesRead + ": " + key );
 			
 			BufferBlock bufferBlock = new BufferBlock( buffer, 0l );
 			buffers.add( bufferBlock );
@@ -229,7 +229,8 @@ public class S3Stream
 	
 	public boolean within( long requestOffset )
 	{
-		return requestOffset >= getMinBufferOffset() && requestOffset <= getMaxBufferOffset() + READ_AHEAD_SIZE;
+		return true;
+		//return requestOffset >= getMinBufferOffset() && requestOffset <= getMaxBufferOffset() + READ_AHEAD_SIZE;
 	}
 	
 	private BufferBlock findBufferForLocation( long location )
